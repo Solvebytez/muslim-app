@@ -1,0 +1,801 @@
+"use client"
+
+import { AntDesign, Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import * as SecureStore from "expo-secure-store"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native"
+
+import HijriCalendar from "@/components/HijriCalendar"
+import useDateTimeLocation from "@/hooks/prayerHooks/useCurrentuserlocateion"
+import { usePrayerSoundSettings } from "@/hooks/prayerHooks/usePrayerSoundSettings"
+import { usePrayerTimes } from "@/hooks/prayerHooks/usePrayerTimes"
+import { useUnifiedPrayerNotifications } from "@/hooks/prayerHooks/useUnifiedPrayerNotifications"
+
+import { calculateCountdown, findCurrentAndNextPrayer, formatPrayerTimes } from "@/utils/prayerUtils"
+import MosqueCard from "./MosqueCard"
+
+const STORAGE_KEY = "completed_prayers"
+const DATE_KEY = "last_completed_date"
+
+const MosqueSilhouette = () => (
+  <View style={styles.mosqueContainer}>
+    <View style={styles.mosqueBase}>
+      {/* Domes */}
+      <View style={[styles.dome, { left: 20, width: 40, height: 20 }]} />
+      <View style={[styles.dome, { left: 70, width: 50, height: 25 }]} />
+      <View style={[styles.dome, { left: 130, width: 45, height: 22 }]} />
+      <View style={[styles.dome, { left: 185, width: 35, height: 18 }]} />
+      <View style={[styles.dome, { left: 230, width: 40, height: 20 }]} />
+
+      {/* Minarets */}
+      <View style={[styles.minaret, { left: 45, height: 60 }]}>
+        <View style={styles.minaretTop} />
+      </View>
+      <View style={[styles.minaret, { left: 95, height: 80 }]}>
+        <View style={styles.minaretTop} />
+      </View>
+      <View style={[styles.minaret, { left: 155, height: 70 }]}>
+        <View style={styles.minaretTop} />
+      </View>
+      <View style={[styles.minaret, { left: 205, height: 55 }]}>
+        <View style={styles.minaretTop} />
+      </View>
+
+      {/* Main building */}
+      <View style={styles.mainBuilding} />
+    </View>
+  </View>
+)
+
+export default function PrayerScreen() {
+  const [countdown, setCountdown] = useState({
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  })
+  const [completedPrayers, setCompletedPrayers] = useState<string[]>([])
+  const [showHijriCalendar, setShowHijriCalendar] = useState(false)
+
+  const INFO_KEY = "has_seen_intro_info"
+const [showIntroInfo, setShowIntroInfo] = useState(false)
+
+useEffect(() => {
+  const checkFirstVisit = async () => {
+    const hasSeen = await SecureStore.getItemAsync(INFO_KEY)
+    if (!hasSeen) {
+      setShowIntroInfo(true)
+    }
+  }
+  checkFirstVisit()
+}, [])
+
+const handleIntroDismiss = async () => {
+  await SecureStore.setItemAsync(INFO_KEY, "true")
+  setShowIntroInfo(false)
+}
+
+  const defaultLat = 43.6532
+  const defaultLng = -79.3832
+
+  const { date, location, isLoading: locationLoading } = useDateTimeLocation()
+
+  // Prayer sound settings hook
+  const { soundSettings, isLoading: soundSettingsLoading, togglePrayerSound, isSoundEnabled } = usePrayerSoundSettings()
+
+  // Create stable coordinates that only change when location actually changes
+  const coordinates = useMemo(() => {
+    const lat = location?.latitude ?? defaultLat
+    const lng = location?.longitude ?? defaultLng
+    return { latitude: lat, longitude: lng }
+  }, [location?.latitude, location?.longitude])
+
+  const { prayerData, isLoading, error, refetch } = usePrayerTimes(date, coordinates.latitude, coordinates.longitude)
+
+  // Memoize prayer times to prevent recalculation
+  const prayerTimes = useMemo(() => {
+    return prayerData ? formatPrayerTimes(prayerData.timings) : []
+  }, [prayerData])
+
+  // Memoize current and next prayer
+  const { current: currentPrayer, next: nextPrayer } = useMemo(() => {
+    return findCurrentAndNextPrayer(prayerTimes)
+  }, [prayerTimes])
+
+  // Use unified prayer notifications hook instead of multiple hooks
+  const {
+    isAzanPlaying,
+    currentPlayingPrayer,
+    playAzan,
+    stopAzan,
+    scheduleUnifiedPrayerNotifications,
+    listAllScheduledNotifications,
+    cancelAllNotifications,
+    isInitialized,
+  } = useUnifiedPrayerNotifications(prayerTimes, isSoundEnabled)
+
+  // Countdown effect - only runs when nextPrayer changes
+  useEffect(() => {
+    if (!nextPrayer) {
+      setCountdown({ hours: 0, minutes: 0, seconds: 0 })
+      return
+    }
+
+    const nextPrayerTime = nextPrayer.originalTime
+
+    const updateCountdown = () => {
+      const newCountdown = calculateCountdown(nextPrayerTime)
+      setCountdown(newCountdown)
+    }
+
+    updateCountdown()
+    const interval = setInterval(updateCountdown, 1000)
+
+    return () => clearInterval(interval)
+  }, [nextPrayer])
+
+  const handleRefresh = useCallback(() => {
+    refetch()
+    // Re-schedule notifications when data is refreshed
+    if (prayerTimes.length > 0 && isInitialized) {
+      scheduleUnifiedPrayerNotifications()
+    }
+  }, [refetch, scheduleUnifiedPrayerNotifications, prayerTimes, isInitialized])
+
+  const handleStopAzan = useCallback(() => {
+    stopAzan()
+  }, [stopAzan])
+
+  const handleSoundToggle = useCallback(
+    (prayerName: string) => {
+      if (prayerName === "Sunrise") {
+        Alert.alert("Info", "Sunrise is not a prayer time, so azan is not applicable.")
+        return
+      }
+
+      const currentlyEnabled = isSoundEnabled(prayerName)
+      const action = currentlyEnabled ? "mute" : "enable"
+      const icon = currentlyEnabled ? "🔇" : "🔊"
+
+      Alert.alert(`${icon} ${prayerName} Azan`, `Do you want to ${action} azan for ${prayerName} prayer?`, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: currentlyEnabled ? "Mute" : "Enable",
+          onPress: () => {
+            togglePrayerSound(prayerName)
+            // Re-schedule notifications with updated settings
+            setTimeout(() => {
+              scheduleUnifiedPrayerNotifications()
+            }, 100)
+          },
+          style: currentlyEnabled ? "destructive" : "default",
+        },
+        {
+          text: "Play Now",
+          onPress: () => playAzan(prayerName),
+        },
+      ])
+    },
+    [isSoundEnabled, togglePrayerSound, playAzan, scheduleUnifiedPrayerNotifications],
+  )
+
+  useEffect(() => {
+    const loadPrayer = async () => {
+      const storedTodayDate = await SecureStore.getItemAsync(DATE_KEY)
+
+      if (storedTodayDate !== date) {
+        setCompletedPrayers([])
+        await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify([]))
+        await SecureStore.setItemAsync(DATE_KEY, date)
+      } else {
+        const storedPrayers = await SecureStore.getItemAsync(STORAGE_KEY)
+        if (storedPrayers) {
+          setCompletedPrayers(JSON.parse(storedPrayers))
+        }
+      }
+    }
+
+    loadPrayer()
+  }, [date])
+
+  const savePrayers = async (prayers: string[]) => {
+    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(prayers))
+  }
+
+  const handlePrayerComplete = (prayerName: string) => {
+    setCompletedPrayers((prev) => {
+      let updated
+      if (prev.includes(prayerName)) {
+        updated = prev.filter((name) => name !== prayerName)
+      } else {
+        updated = [...prev, prayerName]
+      }
+      savePrayers(updated)
+      console.log("Prayer toggled:", prayerName)
+      return updated
+    })
+  }
+
+  const handleHijriCalendarOpen = useCallback(() => {
+    setShowHijriCalendar(true)
+  }, [])
+
+  const handleHijriCalendarClose = useCallback(() => {
+    setShowHijriCalendar(false)
+  }, [])
+
+  // Debug functions
+  const handleDebugNotifications = useCallback(async () => {
+    const notifications = await listAllScheduledNotifications()
+    Alert.alert("Debug Info", `${notifications.length} notifications scheduled. Check console for details.`)
+  }, [listAllScheduledNotifications])
+
+  const handleCancelAllNotifications = useCallback(async () => {
+    Alert.alert("Cancel All Notifications", "Are you sure you want to cancel all scheduled notifications?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes, Cancel All",
+        style: "destructive",
+        onPress: cancelAllNotifications,
+      },
+    ])
+  }, [cancelAllNotifications])
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Failed to load prayer times</Text>
+          <Text style={styles.errorDetails}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  const isLoadingData = isLoading || locationLoading || soundSettingsLoading
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <Modal visible={showIntroInfo} transparent animationType="fade">
+  <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.6)" }}>
+    <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 20, marginHorizontal: 20 }}>
+      <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 10 }}>Notification Info</Text>
+      <Text style={{ fontSize: 14, marginBottom: 5 }}>✅ App is not in battery optimization</Text>
+      <Text style={{ fontSize: 14, marginBottom: 5 }}>✅ Notifications are enabled for the app</Text>
+      <Text style={{ fontSize: 14, marginBottom: 15 }}>✅ {"Do Not Disturb"} is not blocking notifications</Text>
+      <TouchableOpacity onPress={handleIntroDismiss} style={{ alignSelf: "flex-end", padding: 10 }}>
+        <Text style={{ color: "#4A5FBF", fontWeight: "600" }}>Got it</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+      <LinearGradient
+        colors={["#4A5FBF", "#7B68EE", "#DDA0DD"]}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      >
+        {/* Header with next prayer */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+            <Ionicons name="refresh" size={24} color="white" />
+          </TouchableOpacity>
+
+          {/* Azan control button */}
+          {isAzanPlaying && (
+            <TouchableOpacity style={styles.azanButton} onPress={handleStopAzan}>
+              <Ionicons name="stop" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+
+          {/* Debug button */}
+          {/* <TouchableOpacity style={[styles.azanButton, { left: 70 }]} onPress={handleDebugNotifications}>
+            <Ionicons name="bug" size={20} color="white" />
+          </TouchableOpacity> */}
+
+          {isLoadingData ? (
+            <ActivityIndicator size="large" color="white" />
+          ) : (
+            <>
+              <Text style={styles.currentPrayerName}>
+                {nextPrayer ? `Next: ${nextPrayer.name}` : "No upcoming prayer"}
+              </Text>
+              {location?.latitude && location?.longitude && (
+                <View
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                    borderRadius: 20,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                  }}
+                >
+                  <Text style={styles.locationText}>
+                    📍 {location.city + ", " + location.region + ", " + location.country}
+                  </Text>
+                </View>
+              )}
+              {(!location?.latitude || !location?.longitude) && (
+                <Text style={styles.locationText}>📍 Using default location (Toronto)</Text>
+              )}
+              <Text style={styles.currentTime}>
+                {nextPrayer ? `${nextPrayer.time} ` : ""}
+                <Text style={styles.period}>{nextPrayer?.period || ""}</Text>
+              </Text>
+              {nextPrayer && (
+                <Text style={styles.countdownText}>
+                  {`${countdown.hours.toString().padStart(2, "0")}:${countdown.minutes
+                    .toString()
+                    .padStart(2, "0")}:${countdown.seconds.toString().padStart(2, "0")}`}
+                </Text>
+              )}
+              {isAzanPlaying && (
+                <Text style={styles.azanPlayingText}>
+                  🔊 Playing Azan {currentPlayingPrayer ? `for ${currentPlayingPrayer}` : ""}
+                </Text>
+              )}
+              {!isInitialized && <Text style={styles.initializingText}>🔄 Initializing notifications...</Text>}
+            </>
+          )}
+        </View>
+
+        {/* Mosque silhouette */}
+        <MosqueSilhouette />
+
+        {/* Prayer times list */}
+        <View style={styles.prayerListContainer}>
+          <ScrollView
+            style={styles.prayerList}
+            contentContainerStyle={{ paddingBottom: 30 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {isLoadingData ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4A5FBF" />
+                <Text style={styles.loadingText}>Loading prayer times...</Text>
+              </View>
+            ) : (
+              <>
+                {prayerData && (
+                  <View style={styles.dateContainer}>
+                    <Text style={styles.dateText}>{prayerData.date.readable}</Text>
+                    <Text style={styles.hijriText}>Hijri: {prayerData.date.hijri.date}</Text>
+                    <TouchableOpacity onPress={handleHijriCalendarOpen} style={styles.hijriDateButton}>
+                      <Text style={{}}>📅 Hijri Calendar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {prayerTimes.map((prayer, index) => {
+                  const isCurrent = currentPrayer?.name === prayer.name
+                  const isNext = nextPrayer?.name === prayer.name
+                  const soundEnabled = isSoundEnabled(prayer.name)
+                  const isPlayingThis = currentPlayingPrayer === prayer.name
+
+                  // Determine sound icon
+                  let soundIcon = "volume-mute-outline"
+                  let soundColor = "#999"
+
+                  if (prayer.name === "Sunrise") {
+                    soundIcon = "sunny-outline"
+                    soundColor = "#FFA500"
+                  } else if (isPlayingThis) {
+                    soundIcon = "volume-high"
+                    soundColor = "#4A5FBF"
+                  } else if (soundEnabled) {
+                    soundIcon = "volume-medium-outline"
+                    soundColor = isCurrent || isNext ? "#4A5FBF" : "#666"
+                  } else {
+                    soundIcon = "volume-mute-outline"
+                    soundColor = "#999"
+                  }
+
+                  return (
+                    <TouchableOpacity
+                      key={`${prayer.name}-${index}`}
+                      style={[
+                        styles.prayerItem,
+                        isCurrent && styles.currentPrayerItem,
+                        isNext && styles.nextPrayerItem,
+                      ]}
+                    >
+                      <View style={styles.prayerNameContainer}>
+                        <Text style={[styles.prayerName, (isCurrent || isNext) && styles.highlightedPrayerText]}>
+                          {prayer.name}
+                        </Text>
+                        <View style={styles.statusContainer}>
+                          {isCurrent && <Text style={styles.statusText}>Current</Text>}
+                          {isNext && (
+                            <Text
+                              style={[
+                                styles.statusText,
+                                {
+                                  backgroundColor: "#FFA500",
+                                  color: "#000",
+                                  paddingHorizontal: 10,
+                                  borderRadius: 10,
+                                  fontWeight: "bold",
+                                },
+                              ]}
+                            >
+                              Next
+                            </Text>
+                          )}
+                          {prayer.name !== "Sunrise" && (
+                            <Text style={[styles.soundStatusText, { color: soundEnabled ? "#10ac84" : "#999" }]}>
+                              {soundEnabled ? "🔊 Enabled" : "🔇 Muted"}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.prayerTimeContainer}>
+                        <Text style={[styles.prayerTime, (isCurrent || isNext) && styles.highlightedPrayerText]}>
+                          {prayer.time} {prayer.period}
+                        </Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.soundButton,
+                            !soundEnabled && prayer.name !== "Sunrise" && styles.mutedSoundButton,
+                          ]}
+                          onPress={() => handleSoundToggle(prayer.name)}
+                        >
+                          <Ionicons name={soundIcon as any} size={20} color={soundColor} />
+                        </TouchableOpacity>
+                        {prayer.name !== "Sunrise" && (
+                          <TouchableOpacity
+                            style={[
+                              styles.soundButton,
+                              !soundEnabled && prayer.name !== "Sunrise" && styles.mutedSoundButton,
+                            ]}
+                            onPress={() => handlePrayerComplete(prayer.name)}
+                          >
+                            {completedPrayers.includes(prayer.name) ? (
+                              <Text>
+                                {" "}
+                                <AntDesign name="checkcircle" size={20} color="#10ac84" />
+                              </Text>
+                            ) : (
+                              <Text>
+                                {" "}
+                                <AntDesign name="checkcircleo" size={20} color="#999" />
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+
+                {location && <MosqueCard lat={location.latitude} lng={location.longitude} />}
+
+                {/* Background Azan Setup Component */}
+                {/* <BackgroundAzanSetup prayerTimes={prayerTimes} /> */}
+
+                {/* Debug section */}
+                {/* <View style={styles.debugContainer}>
+                  <Text style={styles.debugTitle}>🔧 Debug Controls</Text>
+                  <TouchableOpacity style={styles.debugButton} onPress={handleDebugNotifications}>
+                    <Text style={styles.debugButtonText}>📋 List Scheduled Notifications</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.debugButton, styles.dangerButton]}
+                    onPress={handleCancelAllNotifications}
+                  >
+                    <Text style={[styles.debugButtonText, { color: "white" }]}>🗑️ Cancel All Notifications</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.debugInfo}>Initialization: {isInitialized ? "✅ Ready" : "⏳ Loading"}</Text>
+                  <Text style={styles.debugInfo}>System: Unified notifications with deduplication</Text>
+                </View> */}
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </LinearGradient>
+
+      {/* Hijri Calendar Modal */}
+      <HijriCalendar
+        visible={showHijriCalendar}
+        onClose={handleHijriCalendarClose}
+        currentHijriDate={prayerData?.date.hijri.date}
+        currentGregorianDate={prayerData?.date.readable}
+      />
+    </SafeAreaView>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  gradient: {
+    flex: 1,
+  },
+  header: {
+    alignItems: "center",
+    paddingTop: 40,
+    paddingBottom: 20,
+    position: "relative",
+  },
+  refreshButton: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    padding: 8,
+  },
+  azanButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    padding: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 20,
+  },
+  currentPrayerName: {
+    fontSize: 24,
+    fontWeight: "300",
+    color: "white",
+    marginBottom: 8,
+  },
+  currentTime: {
+    fontSize: 48,
+    fontWeight: "200",
+    color: "white",
+  },
+  period: {
+    fontSize: 24,
+    fontWeight: "300",
+  },
+  countdownText: {
+    fontSize: 18,
+    fontWeight: "400",
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 8,
+  },
+  azanPlayingText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#FFD700",
+    marginTop: 8,
+  },
+  initializingText: {
+    fontSize: 14,
+    fontWeight: "400",
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 4,
+  },
+  mosqueContainer: {
+    height: 130,
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    marginBottom: 3,
+  },
+  mosqueBase: {
+    position: "relative",
+    height: 80,
+  },
+  dome: {
+    position: "absolute",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    borderTopLeftRadius: 50,
+    borderTopRightRadius: 50,
+    bottom: 30,
+  },
+  minaret: {
+    position: "absolute",
+    width: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    bottom: 30,
+  },
+  minaretTop: {
+    width: 12,
+    height: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    borderRadius: 6,
+    position: "absolute",
+    top: -4,
+    left: -2,
+  },
+  mainBuilding: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 30,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  prayerListContainer: {
+    flex: 1,
+    backgroundColor: "white",
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingTop: 20,
+  },
+  prayerList: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  dateContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E5",
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 4,
+  },
+  hijriDateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#4A5FBF10",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  hijriText: {
+    fontSize: 14,
+    color: "#10ac84",
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  locationText: {
+    fontSize: 12,
+    color: "#fff",
+    fontStyle: "italic",
+  },
+  prayerItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+  },
+  currentPrayerItem: {
+    backgroundColor: "#10ac8410",
+    borderWidth: 1,
+    borderColor: "#10ac84",
+  },
+  nextPrayerItem: {
+    backgroundColor: "#4A5FBF10",
+    borderWidth: 1,
+    borderColor: "#4A5FBF",
+  },
+  prayerNameContainer: {
+    flexDirection: "column",
+    flex: 1,
+  },
+  prayerName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+    gap: 8,
+  },
+  statusText: {
+    fontSize: 12,
+    color: "#4A5FBF",
+    fontWeight: "600",
+  },
+  soundStatusText: {
+    fontSize: 10,
+    fontWeight: "500",
+  },
+  highlightedPrayerText: {
+    color: "#4A5FBF",
+    fontWeight: "600",
+  },
+  prayerTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  prayerTime: {
+    fontSize: 16,
+    color: "#666",
+    marginRight: 12,
+  },
+  soundButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  mutedSoundButton: {
+    backgroundColor: "#f0f0f0",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: "#666",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  errorDetails: {
+    fontSize: 14,
+    color: "#999",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: "#4A5FBF",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  debugContainer: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  debugTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 10,
+  },
+  debugButton: {
+    backgroundColor: "#4A5FBF",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  dangerButton: {
+    backgroundColor: "#dc3545",
+  },
+  debugButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  debugInfo: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 5,
+  },
+})

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "muslim-guide",
+    "name": "Muslim Compass",
     "slug": "muslim-guide",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,14 +9,35 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sahin05.muslimguide",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to show prayer times and nearby mosques.",
+        "NSLocationAlwaysUsageDescription": "Your location helps us provide accurate guidance features at all times.",
+        "UIBackgroundModes": ["audio", "background-processing", "background-fetch"],
+        "NSUserNotificationsUsageDescription": "We need notification permission to remind you of prayer times with azan."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.sahin05.muslimguide",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "USE_FULL_SCREEN_INTENT",
+        "SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -24,6 +45,27 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/azan.mp3"],
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#4A5FBF",
+          "androidMode": "default",
+          "androidCollapsedTitle": "Prayer Time",
+          "iosDisplayInForeground": true,
+          "requestPermissionsImmediately": false,
+          "enableBackgroundRefresh": true
+        }
+      ],
+      "expo-image-picker",
+      "expo-secure-store",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.587652399701-esvihdmj5v2c1an425fut35vkdgramop"
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -33,10 +75,31 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow this app to use your location for prayer times and guidance."
+        }
+      ],
+      [
+        "expo-task-manager",
+        {
+          "backgroundModes": ["background-processing", "background-fetch", "audio"]
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "APP_API_TOKEN": "asf2e9996686b942552d8457f58888de149fcd4f763dfce5ce5e0bfdcfe4ddb1adca35e775sdfc434c682d",
+      "EXPO_PUBLIC_BASE_URL": "https://api.muslimcompass.io",
+      "GOOGLE_PLACES_API_KEY": "AIzaSyD0p_NWoD1snHw08frmTfpKLHv0aeom_sA",
+      "router": {},
+      "eas": {
+        "projectId": "a973b7e8-3887-4e01-bbfb-c88c8c950e7c"
+      }
     }
   }
 }

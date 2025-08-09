@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+.vscode
+.qodo
+
 # Expo
 .expo/
 dist/
@@ -37,3 +40,10 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+node_modules/*
+.git/*
+.env
+*.log
+
+M@uslim@g01
+mulim.g01@gmail.com

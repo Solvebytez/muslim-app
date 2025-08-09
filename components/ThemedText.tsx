@@ -1,6 +1,5 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
-
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { StyleSheet, Text, type TextProps } from 'react-native';
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
@@ -20,13 +19,11 @@ export function ThemedText({
   return (
     <Text
       style={[
-        { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
-        style,
+        { color, 
+          // fontFamily: 'ZillaSlab'
+         }, // 👈 Global default font
+        styles[type], // 👈 Centralized styles
+        style,        // 👈 Allow override
       ]}
       {...rest}
     />
@@ -36,25 +33,23 @@ export function ThemedText({
 const styles = StyleSheet.create({
   default: {
     fontSize: 16,
-    lineHeight: 24,
+   
   },
   defaultSemiBold: {
     fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
+    
+    // To use actual semi-bold font, import 'ZillaSlab-SemiBold.ttf' and load it in `useFonts`
+    // Then set fontFamily: 'ZillaSlab-SemiBold' here.
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
+    // fontWeight removed to avoid conflicts with custom font
   },
   subtitle: {
     fontSize: 20,
-    fontWeight: 'bold',
   },
   link: {
-    lineHeight: 30,
-    fontSize: 16,
+    fontSize: 16,   
     color: '#0a7ea4',
   },
 });

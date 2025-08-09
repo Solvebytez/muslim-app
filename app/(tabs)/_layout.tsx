@@ -1,45 +1,109 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useGetuser } from "@/hooks/useGetuser"
+import { Entypo, FontAwesome, FontAwesome5, MaterialIcons } from "@expo/vector-icons"
+import { Tabs } from "expo-router"
+import { ActivityIndicator, View } from "react-native"
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { user, isLoding } = useGetuser()
+
+  // Show loading spinner while user data is being fetched
+  if (isLoding) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#10ac84" }}>
+        <ActivityIndicator size="large" color="white" />
+      </View>
+    )
+  }
+
+  // If no user data is available, you might want to redirect to login
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#10ac84" }}>
+        <ActivityIndicator size="large" color="white" />
+      </View>
+    )
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarActiveTintColor: "yellow",
+        tabBarInactiveTintColor: "white",
+        tabBarStyle: {
+          backgroundColor: "#10ac84",
+          borderTopWidth: 0,
+        },
+      }}
+    >
+      {/* Map tab - hidden for vendors */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "Map",
+          tabBarIcon: ({ color }) => <Entypo name="map" size={24} color={color} />,
+          href: user.role === "vendor" ? null : "/",
         }}
       />
+
+      {/* Cuisines tab - hidden for vendors */}
       <Tabs.Screen
-        name="explore"
+        name="cuisines"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Cuisines",
+          tabBarIcon: ({ color }) => <Entypo name="ticket" size={24} color={color} />,
+          href: user.role === "vendor" ? null : "/cuisines",
+        }}
+      />
+
+      {/* Add Hotel tab - only visible for vendors */}
+      <Tabs.Screen
+        name="add-hotel"
+        options={{
+          title: "Add Hotel",
+          tabBarIcon: ({ color }) => <MaterialIcons name="add-home" size={22} color={color} />,
+          href: user.role === "vendor" ? "/add-hotel" : null,
+        }}
+      />
+
+      {/* My Hotel tab - only visible for vendors */}
+      <Tabs.Screen
+        name="my-hotel"
+        options={{
+          title: "My Hotel",
+          tabBarIcon: ({ color }) => <FontAwesome5 name="hotel" size={22} color={color} />,
+          href: user.role === "vendor" ? "/my-hotel" : null,
+        }}
+      />
+
+      {/* Prayer tab - visible for all users */}
+      <Tabs.Screen
+        name="prayer"
+        options={{
+          title: "Prayer",
+          tabBarIcon: ({ color }) => <FontAwesome5 name="pray" size={24} color={color} />,
+        }}
+      />
+
+    
+
+       <Tabs.Screen
+        name="favorites"
+        options={{
+          title: "Favorites",
+          tabBarIcon: ({ color }) => <FontAwesome name="heart-o" size={24} color={color} />,
+          href: user.role === "user" ? "/favorites" : null,
+        }}
+      />
+
+        {/* Profile tab - visible for all users */}
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => <FontAwesome5 name="user" size={24} color={color} />,
         }}
       />
     </Tabs>
-  );
+  )
 }
