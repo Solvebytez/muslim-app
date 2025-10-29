@@ -1,13 +1,15 @@
-"use client"
+"use client";
 
-import { AntDesign, Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import * as SecureStore from "expo-secure-store"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { AntDesign, Ionicons } from "@expo/vector-icons";
+import NetInfo from "@react-native-community/netinfo";
+import { LinearGradient } from "expo-linear-gradient";
+import * as SecureStore from "expo-secure-store";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -15,19 +17,23 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from "react-native"
+} from "react-native";
 
-import HijriCalendar from "@/components/HijriCalendar"
-import useDateTimeLocation from "@/hooks/prayerHooks/useCurrentuserlocateion"
-import { usePrayerSoundSettings } from "@/hooks/prayerHooks/usePrayerSoundSettings"
-import { usePrayerTimes } from "@/hooks/prayerHooks/usePrayerTimes"
-import { useUnifiedPrayerNotifications } from "@/hooks/prayerHooks/useUnifiedPrayerNotifications"
+import HijriCalendar from "@/components/HijriCalendar";
+import useDateTimeLocation from "@/hooks/prayerHooks/useCurrentuserlocateion";
+import { usePrayerSoundSettings } from "@/hooks/prayerHooks/usePrayerSoundSettings";
+import { usePrayerTimes } from "@/hooks/prayerHooks/usePrayerTimes";
+import { useUnifiedPrayerNotifications } from "@/hooks/prayerHooks/useUnifiedPrayerNotifications";
 
-import { calculateCountdown, findCurrentAndNextPrayer, formatPrayerTimes } from "@/utils/prayerUtils"
-import MosqueCard from "./MosqueCard"
+import {
+  calculateCountdown,
+  findCurrentAndNextPrayer,
+  formatPrayerTimes,
+} from "@/utils/prayerUtils";
+import MosqueCard from "./MosqueCard";
 
-const STORAGE_KEY = "completed_prayers"
-const DATE_KEY = "last_completed_date"
+const STORAGE_KEY = "completed_prayers";
+const DATE_KEY = "last_completed_date";
 
 const MosqueSilhouette = () => (
   <View style={styles.mosqueContainer}>
@@ -57,61 +63,73 @@ const MosqueSilhouette = () => (
       <View style={styles.mainBuilding} />
     </View>
   </View>
-)
+);
 
 export default function PrayerScreen() {
   const [countdown, setCountdown] = useState({
     hours: 0,
     minutes: 0,
     seconds: 0,
-  })
-  const [completedPrayers, setCompletedPrayers] = useState<string[]>([])
-  const [showHijriCalendar, setShowHijriCalendar] = useState(false)
+  });
+  const [completedPrayers, setCompletedPrayers] = useState<string[]>([]);
+  const [showHijriCalendar, setShowHijriCalendar] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showOfflineAlert, setShowOfflineAlert] = useState(false);
 
-  const INFO_KEY = "has_seen_intro_info"
-const [showIntroInfo, setShowIntroInfo] = useState(false)
+  const INFO_KEY = "has_seen_intro_info";
+  const [showIntroInfo, setShowIntroInfo] = useState(false);
 
-useEffect(() => {
-  const checkFirstVisit = async () => {
-    const hasSeen = await SecureStore.getItemAsync(INFO_KEY)
-    if (!hasSeen) {
-      setShowIntroInfo(true)
-    }
-  }
-  checkFirstVisit()
-}, [])
+  useEffect(() => {
+    const checkFirstVisit = async () => {
+      const hasSeen = await SecureStore.getItemAsync(INFO_KEY);
+      if (!hasSeen) {
+        setShowIntroInfo(true);
+      }
+    };
+    checkFirstVisit();
+  }, []);
 
-const handleIntroDismiss = async () => {
-  await SecureStore.setItemAsync(INFO_KEY, "true")
-  setShowIntroInfo(false)
-}
+  const handleIntroDismiss = async () => {
+    await SecureStore.setItemAsync(INFO_KEY, "true");
+    setShowIntroInfo(false);
+  };
 
-  const defaultLat = 43.6532
-  const defaultLng = -79.3832
+  const defaultLat = 43.6532;
+  const defaultLng = -79.3832;
 
-  const { date, location, isLoading: locationLoading } = useDateTimeLocation()
+  const { date, location, isLoading: locationLoading } = useDateTimeLocation();
 
   // Prayer sound settings hook
-  const { soundSettings, isLoading: soundSettingsLoading, togglePrayerSound, isSoundEnabled } = usePrayerSoundSettings()
+  const {
+    soundSettings,
+    isLoading: soundSettingsLoading,
+    togglePrayerSound,
+    isSoundEnabled,
+  } = usePrayerSoundSettings();
 
   // Create stable coordinates that only change when location actually changes
   const coordinates = useMemo(() => {
-    const lat = location?.latitude ?? defaultLat
-    const lng = location?.longitude ?? defaultLng
-    return { latitude: lat, longitude: lng }
-  }, [location?.latitude, location?.longitude])
+    const lat = location?.latitude ?? defaultLat;
+    const lng = location?.longitude ?? defaultLng;
+    return { latitude: lat, longitude: lng };
+  }, [location?.latitude, location?.longitude, defaultLat, defaultLng]);
 
-  const { prayerData, isLoading, error, refetch } = usePrayerTimes(date, coordinates.latitude, coordinates.longitude)
+  const { prayerData, isLoading, error, refetch } = usePrayerTimes(
+    date,
+    coordinates.latitude,
+    coordinates.longitude
+  );
 
   // Memoize prayer times to prevent recalculation
   const prayerTimes = useMemo(() => {
-    return prayerData ? formatPrayerTimes(prayerData.timings) : []
-  }, [prayerData])
+    return prayerData ? formatPrayerTimes(prayerData.timings) : [];
+  }, [prayerData]); // Fixed dependency to include full prayerData
 
   // Memoize current and next prayer
   const { current: currentPrayer, next: nextPrayer } = useMemo(() => {
-    return findCurrentAndNextPrayer(prayerTimes)
-  }, [prayerTimes])
+    return findCurrentAndNextPrayer(prayerTimes);
+  }, [prayerTimes]);
 
   // Use unified prayer notifications hook instead of multiple hooks
   const {
@@ -123,134 +141,189 @@ const handleIntroDismiss = async () => {
     listAllScheduledNotifications,
     cancelAllNotifications,
     isInitialized,
-  } = useUnifiedPrayerNotifications(prayerTimes, isSoundEnabled)
+  } = useUnifiedPrayerNotifications(prayerTimes, isSoundEnabled);
 
   // Countdown effect - only runs when nextPrayer changes
   useEffect(() => {
     if (!nextPrayer) {
-      setCountdown({ hours: 0, minutes: 0, seconds: 0 })
-      return
+      setCountdown({ hours: 0, minutes: 0, seconds: 0 });
+      return;
     }
 
-    const nextPrayerTime = nextPrayer.originalTime
+    const nextPrayerTime = nextPrayer.originalTime;
 
     const updateCountdown = () => {
-      const newCountdown = calculateCountdown(nextPrayerTime)
-      setCountdown(newCountdown)
+      const newCountdown = calculateCountdown(nextPrayerTime);
+      setCountdown(newCountdown);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [nextPrayer]);
+
+  // Network monitoring effect
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const wasOffline = !isOnline;
+      setIsOnline(state.isConnected ?? false);
+
+      // Show offline alert when going offline
+      if (wasOffline && state.isConnected) {
+        setShowOfflineAlert(false);
+      } else if (!wasOffline && !state.isConnected) {
+        setShowOfflineAlert(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isOnline]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!isOnline) {
+      Alert.alert(
+        "No Internet Connection",
+        "Please check your internet connection and try again.",
+        [{ text: "OK" }]
+      );
+      return;
     }
 
-    updateCountdown()
-    const interval = setInterval(updateCountdown, 1000)
-
-    return () => clearInterval(interval)
-  }, [nextPrayer])
-
-  const handleRefresh = useCallback(() => {
-    refetch()
-    // Re-schedule notifications when data is refreshed
-    if (prayerTimes.length > 0 && isInitialized) {
-      scheduleUnifiedPrayerNotifications()
+    setRefreshing(true);
+    try {
+      await refetch();
+      // Re-schedule notifications when data is refreshed
+      if (prayerTimes.length > 0 && isInitialized) {
+        scheduleUnifiedPrayerNotifications();
+      }
+    } finally {
+      setRefreshing(false);
     }
-  }, [refetch, scheduleUnifiedPrayerNotifications, prayerTimes, isInitialized])
+  }, [
+    refetch,
+    scheduleUnifiedPrayerNotifications,
+    prayerTimes,
+    isInitialized,
+    isOnline,
+  ]);
 
   const handleStopAzan = useCallback(() => {
-    stopAzan()
-  }, [stopAzan])
+    stopAzan();
+  }, [stopAzan]);
 
   const handleSoundToggle = useCallback(
     (prayerName: string) => {
       if (prayerName === "Sunrise") {
-        Alert.alert("Info", "Sunrise is not a prayer time, so azan is not applicable.")
-        return
+        Alert.alert(
+          "Info",
+          "Sunrise is not a prayer time, so azan is not applicable."
+        );
+        return;
       }
 
-      const currentlyEnabled = isSoundEnabled(prayerName)
-      const action = currentlyEnabled ? "mute" : "enable"
-      const icon = currentlyEnabled ? "🔇" : "🔊"
+      const currentlyEnabled = isSoundEnabled(prayerName);
+      const action = currentlyEnabled ? "mute" : "enable";
+      const icon = currentlyEnabled ? "🔇" : "🔊";
 
-      Alert.alert(`${icon} ${prayerName} Azan`, `Do you want to ${action} azan for ${prayerName} prayer?`, [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: currentlyEnabled ? "Mute" : "Enable",
-          onPress: () => {
-            togglePrayerSound(prayerName)
-            // Re-schedule notifications with updated settings
-            setTimeout(() => {
-              scheduleUnifiedPrayerNotifications()
-            }, 100)
+      Alert.alert(
+        `${icon} ${prayerName} Azan`,
+        `Do you want to ${action} azan for ${prayerName} prayer?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: currentlyEnabled ? "Mute" : "Enable",
+            onPress: () => {
+              togglePrayerSound(prayerName);
+              // Re-schedule notifications with updated settings
+              setTimeout(() => {
+                scheduleUnifiedPrayerNotifications();
+              }, 100);
+            },
+            style: currentlyEnabled ? "destructive" : "default",
           },
-          style: currentlyEnabled ? "destructive" : "default",
-        },
-        {
-          text: "Play Now",
-          onPress: () => playAzan(prayerName),
-        },
-      ])
+          {
+            text: "Play Now",
+            onPress: () => playAzan(prayerName),
+          },
+        ]
+      );
     },
-    [isSoundEnabled, togglePrayerSound, playAzan, scheduleUnifiedPrayerNotifications],
-  )
+    [
+      isSoundEnabled,
+      togglePrayerSound,
+      playAzan,
+      scheduleUnifiedPrayerNotifications,
+    ]
+  );
 
   useEffect(() => {
     const loadPrayer = async () => {
-      const storedTodayDate = await SecureStore.getItemAsync(DATE_KEY)
+      const storedTodayDate = await SecureStore.getItemAsync(DATE_KEY);
 
       if (storedTodayDate !== date) {
-        setCompletedPrayers([])
-        await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify([]))
-        await SecureStore.setItemAsync(DATE_KEY, date)
+        setCompletedPrayers([]);
+        await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify([]));
+        await SecureStore.setItemAsync(DATE_KEY, date);
       } else {
-        const storedPrayers = await SecureStore.getItemAsync(STORAGE_KEY)
+        const storedPrayers = await SecureStore.getItemAsync(STORAGE_KEY);
         if (storedPrayers) {
-          setCompletedPrayers(JSON.parse(storedPrayers))
+          setCompletedPrayers(JSON.parse(storedPrayers));
         }
       }
-    }
+    };
 
-    loadPrayer()
-  }, [date])
+    loadPrayer();
+  }, [date]);
 
   const savePrayers = async (prayers: string[]) => {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(prayers))
-  }
+    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(prayers));
+  };
 
   const handlePrayerComplete = (prayerName: string) => {
     setCompletedPrayers((prev) => {
-      let updated
+      let updated;
       if (prev.includes(prayerName)) {
-        updated = prev.filter((name) => name !== prayerName)
+        updated = prev.filter((name) => name !== prayerName);
       } else {
-        updated = [...prev, prayerName]
+        updated = [...prev, prayerName];
       }
-      savePrayers(updated)
-      console.log("Prayer toggled:", prayerName)
-      return updated
-    })
-  }
+      savePrayers(updated);
+      return updated;
+    });
+  };
 
   const handleHijriCalendarOpen = useCallback(() => {
-    setShowHijriCalendar(true)
-  }, [])
+    setShowHijriCalendar(true);
+  }, []);
 
   const handleHijriCalendarClose = useCallback(() => {
-    setShowHijriCalendar(false)
-  }, [])
+    setShowHijriCalendar(false);
+  }, []);
 
   // Debug functions
   const handleDebugNotifications = useCallback(async () => {
-    const notifications = await listAllScheduledNotifications()
-    Alert.alert("Debug Info", `${notifications.length} notifications scheduled. Check console for details.`)
-  }, [listAllScheduledNotifications])
+    const notifications = await listAllScheduledNotifications();
+    Alert.alert(
+      "Debug Info",
+      `${notifications.length} notifications scheduled. Check console for details.`
+    );
+  }, [listAllScheduledNotifications]);
 
   const handleCancelAllNotifications = useCallback(async () => {
-    Alert.alert("Cancel All Notifications", "Are you sure you want to cancel all scheduled notifications?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Yes, Cancel All",
-        style: "destructive",
-        onPress: cancelAllNotifications,
-      },
-    ])
-  }, [cancelAllNotifications])
+    Alert.alert(
+      "Cancel All Notifications",
+      "Are you sure you want to cancel all scheduled notifications?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, Cancel All",
+          style: "destructive",
+          onPress: cancelAllNotifications,
+        },
+      ]
+    );
+  }, [cancelAllNotifications]);
 
   if (error) {
     return (
@@ -263,27 +336,79 @@ const handleIntroDismiss = async () => {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
-  const isLoadingData = isLoading || locationLoading || soundSettingsLoading
+  const isLoadingData =
+    (isLoading || locationLoading || soundSettingsLoading) && !prayerData;
+  const isCalculatingPrayerData = prayerData && prayerTimes.length === 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
+      {/* Intro Info Modal */}
       <Modal visible={showIntroInfo} transparent animationType="fade">
-  <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.6)" }}>
-    <View style={{ backgroundColor: "#fff", borderRadius: 12, padding: 20, marginHorizontal: 20 }}>
-      <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 10 }}>Notification Info</Text>
-      <Text style={{ fontSize: 14, marginBottom: 5 }}>✅ App is not in battery optimization</Text>
-      <Text style={{ fontSize: 14, marginBottom: 5 }}>✅ Notifications are enabled for the app</Text>
-      <Text style={{ fontSize: 14, marginBottom: 15 }}>✅ {"Do Not Disturb"} is not blocking notifications</Text>
-      <TouchableOpacity onPress={handleIntroDismiss} style={{ alignSelf: "flex-end", padding: 10 }}>
-        <Text style={{ color: "#4A5FBF", fontWeight: "600" }}>Got it</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.6)",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 12,
+              padding: 20,
+              marginHorizontal: 20,
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 10 }}>
+              Notification Info
+            </Text>
+            <Text style={{ fontSize: 14, marginBottom: 5 }}>
+              ✅ App is not in battery optimization
+            </Text>
+            <Text style={{ fontSize: 14, marginBottom: 5 }}>
+              ✅ Notifications are enabled for the app
+            </Text>
+            <Text style={{ fontSize: 14, marginBottom: 15 }}>
+              ✅ {"Do Not Disturb"} is not blocking notifications
+            </Text>
+            <TouchableOpacity
+              onPress={handleIntroDismiss}
+              style={{ alignSelf: "flex-end", padding: 10 }}
+            >
+              <Text style={{ color: "#4A5FBF", fontWeight: "600" }}>
+                Got it
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Offline Alert Modal */}
+      <Modal visible={showOfflineAlert} transparent animationType="fade">
+        <View style={styles.offlineModalOverlay}>
+          <View style={styles.offlineModalContent}>
+            <View style={styles.offlineIconContainer}>
+              <Ionicons name="wifi-outline" size={48} color="#FF6B6B" />
+            </View>
+            <Text style={styles.offlineTitle}>No Internet Connection</Text>
+            <Text style={styles.offlineMessage}>
+              The app is currently offline. Please check your internet
+              connection and pull down to refresh when you&apos;re back online.
+            </Text>
+            <TouchableOpacity
+              style={styles.offlineButton}
+              onPress={() => setShowOfflineAlert(false)}
+            >
+              <Text style={styles.offlineButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <LinearGradient
         colors={["#4A5FBF", "#7B68EE", "#DDA0DD"]}
         style={styles.gradient}
@@ -292,13 +417,19 @@ const handleIntroDismiss = async () => {
       >
         {/* Header with next prayer */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={handleRefresh}
+          >
             <Ionicons name="refresh" size={24} color="white" />
           </TouchableOpacity>
 
           {/* Azan control button */}
           {isAzanPlaying && (
-            <TouchableOpacity style={styles.azanButton} onPress={handleStopAzan}>
+            <TouchableOpacity
+              style={styles.azanButton}
+              onPress={handleStopAzan}
+            >
               <Ionicons name="stop" size={24} color="white" />
             </TouchableOpacity>
           )}
@@ -308,10 +439,18 @@ const handleIntroDismiss = async () => {
             <Ionicons name="bug" size={20} color="white" />
           </TouchableOpacity> */}
 
-          {isLoadingData ? (
+          {isLoadingData || isCalculatingPrayerData ? (
             <ActivityIndicator size="large" color="white" />
           ) : (
             <>
+              {/* Offline indicator */}
+              {!isOnline && (
+                <View style={styles.offlineIndicator}>
+                  <Ionicons name="wifi-outline" size={16} color="#FF6B6B" />
+                  <Text style={styles.offlineText}>Offline</Text>
+                </View>
+              )}
+
               <Text style={styles.currentPrayerName}>
                 {nextPrayer ? `Next: ${nextPrayer.name}` : "No upcoming prayer"}
               </Text>
@@ -325,12 +464,19 @@ const handleIntroDismiss = async () => {
                   }}
                 >
                   <Text style={styles.locationText}>
-                    📍 {location.city + ", " + location.region + ", " + location.country}
+                    📍{" "}
+                    {location.city +
+                      ", " +
+                      location.region +
+                      ", " +
+                      location.country}
                   </Text>
                 </View>
               )}
               {(!location?.latitude || !location?.longitude) && (
-                <Text style={styles.locationText}>📍 Using default location (Toronto)</Text>
+                <Text style={styles.locationText}>
+                  📍 Using default location (Toronto)
+                </Text>
               )}
               <Text style={styles.currentTime}>
                 {nextPrayer ? `${nextPrayer.time} ` : ""}
@@ -338,17 +484,26 @@ const handleIntroDismiss = async () => {
               </Text>
               {nextPrayer && (
                 <Text style={styles.countdownText}>
-                  {`${countdown.hours.toString().padStart(2, "0")}:${countdown.minutes
+                  {`${countdown.hours
                     .toString()
-                    .padStart(2, "0")}:${countdown.seconds.toString().padStart(2, "0")}`}
+                    .padStart(2, "0")}:${countdown.minutes
+                    .toString()
+                    .padStart(2, "0")}:${countdown.seconds
+                    .toString()
+                    .padStart(2, "0")}`}
                 </Text>
               )}
               {isAzanPlaying && (
                 <Text style={styles.azanPlayingText}>
-                  🔊 Playing Azan {currentPlayingPrayer ? `for ${currentPlayingPrayer}` : ""}
+                  🔊 Playing Azan{" "}
+                  {currentPlayingPrayer ? `for ${currentPlayingPrayer}` : ""}
                 </Text>
               )}
-              {!isInitialized && <Text style={styles.initializingText}>🔄 Initializing notifications...</Text>}
+              {!isInitialized && (
+                <Text style={styles.initializingText}>
+                  🔄 Initializing notifications...
+                </Text>
+              )}
             </>
           )}
         </View>
@@ -362,46 +517,66 @@ const handleIntroDismiss = async () => {
             style={styles.prayerList}
             contentContainerStyle={{ paddingBottom: 30 }}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={["#4A5FBF"]}
+                tintColor="#4A5FBF"
+                title={isOnline ? "Pull to refresh" : "No internet connection"}
+                titleColor="#666"
+              />
+            }
           >
-            {isLoadingData ? (
+            {isLoadingData || isCalculatingPrayerData ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#4A5FBF" />
                 <Text style={styles.loadingText}>Loading prayer times...</Text>
               </View>
             ) : (
               <>
-                {prayerData && (
+                {prayerData && prayerData.date && (
                   <View style={styles.dateContainer}>
-                    <Text style={styles.dateText}>{prayerData.date.readable}</Text>
-                    <Text style={styles.hijriText}>Hijri: {prayerData.date.hijri.date}</Text>
-                    <TouchableOpacity onPress={handleHijriCalendarOpen} style={styles.hijriDateButton}>
+                    <Text style={styles.dateText}>
+                      {prayerData.date.readable}
+                    </Text>
+                    {prayerData?.date?.hijri &&
+                      prayerData?.date?.hijri?.date && (
+                        <Text style={styles.hijriText}>
+                          Hijri: {prayerData.date.hijri.date}
+                        </Text>
+                      )}
+                    <TouchableOpacity
+                      onPress={handleHijriCalendarOpen}
+                      style={styles.hijriDateButton}
+                    >
                       <Text style={{}}>📅 Hijri Calendar</Text>
                     </TouchableOpacity>
                   </View>
                 )}
 
                 {prayerTimes.map((prayer, index) => {
-                  const isCurrent = currentPrayer?.name === prayer.name
-                  const isNext = nextPrayer?.name === prayer.name
-                  const soundEnabled = isSoundEnabled(prayer.name)
-                  const isPlayingThis = currentPlayingPrayer === prayer.name
+                  const isCurrent = currentPrayer?.name === prayer.name;
+                  const isNext = nextPrayer?.name === prayer.name;
+                  const soundEnabled = isSoundEnabled(prayer.name);
+                  const isPlayingThis = currentPlayingPrayer === prayer.name;
 
                   // Determine sound icon
-                  let soundIcon = "volume-mute-outline"
-                  let soundColor = "#999"
+                  let soundIcon = "volume-mute-outline";
+                  let soundColor = "#999";
 
                   if (prayer.name === "Sunrise") {
-                    soundIcon = "sunny-outline"
-                    soundColor = "#FFA500"
+                    soundIcon = "sunny-outline";
+                    soundColor = "#FFA500";
                   } else if (isPlayingThis) {
-                    soundIcon = "volume-high"
-                    soundColor = "#4A5FBF"
+                    soundIcon = "volume-high";
+                    soundColor = "#4A5FBF";
                   } else if (soundEnabled) {
-                    soundIcon = "volume-medium-outline"
-                    soundColor = isCurrent || isNext ? "#4A5FBF" : "#666"
+                    soundIcon = "volume-medium-outline";
+                    soundColor = isCurrent || isNext ? "#4A5FBF" : "#666";
                   } else {
-                    soundIcon = "volume-mute-outline"
-                    soundColor = "#999"
+                    soundIcon = "volume-mute-outline";
+                    soundColor = "#999";
                   }
 
                   return (
@@ -414,11 +589,19 @@ const handleIntroDismiss = async () => {
                       ]}
                     >
                       <View style={styles.prayerNameContainer}>
-                        <Text style={[styles.prayerName, (isCurrent || isNext) && styles.highlightedPrayerText]}>
+                        <Text
+                          style={[
+                            styles.prayerName,
+                            (isCurrent || isNext) &&
+                              styles.highlightedPrayerText,
+                          ]}
+                        >
                           {prayer.name}
                         </Text>
                         <View style={styles.statusContainer}>
-                          {isCurrent && <Text style={styles.statusText}>Current</Text>}
+                          {isCurrent && (
+                            <Text style={styles.statusText}>Current</Text>
+                          )}
                           {isNext && (
                             <Text
                               style={[
@@ -436,52 +619,84 @@ const handleIntroDismiss = async () => {
                             </Text>
                           )}
                           {prayer.name !== "Sunrise" && (
-                            <Text style={[styles.soundStatusText, { color: soundEnabled ? "#10ac84" : "#999" }]}>
+                            <Text
+                              style={[
+                                styles.soundStatusText,
+                                { color: soundEnabled ? "#10ac84" : "#999" },
+                              ]}
+                            >
                               {soundEnabled ? "🔊 Enabled" : "🔇 Muted"}
                             </Text>
                           )}
                         </View>
                       </View>
                       <View style={styles.prayerTimeContainer}>
-                        <Text style={[styles.prayerTime, (isCurrent || isNext) && styles.highlightedPrayerText]}>
+                        <Text
+                          style={[
+                            styles.prayerTime,
+                            (isCurrent || isNext) &&
+                              styles.highlightedPrayerText,
+                          ]}
+                        >
                           {prayer.time} {prayer.period}
                         </Text>
                         <TouchableOpacity
                           style={[
                             styles.soundButton,
-                            !soundEnabled && prayer.name !== "Sunrise" && styles.mutedSoundButton,
+                            !soundEnabled &&
+                              prayer.name !== "Sunrise" &&
+                              styles.mutedSoundButton,
                           ]}
                           onPress={() => handleSoundToggle(prayer.name)}
                         >
-                          <Ionicons name={soundIcon as any} size={20} color={soundColor} />
+                          <Ionicons
+                            name={soundIcon as any}
+                            size={20}
+                            color={soundColor}
+                          />
                         </TouchableOpacity>
                         {prayer.name !== "Sunrise" && (
                           <TouchableOpacity
                             style={[
                               styles.soundButton,
-                              !soundEnabled && prayer.name !== "Sunrise" && styles.mutedSoundButton,
+                              !soundEnabled &&
+                                prayer.name !== "Sunrise" &&
+                                styles.mutedSoundButton,
                             ]}
                             onPress={() => handlePrayerComplete(prayer.name)}
                           >
                             {completedPrayers.includes(prayer.name) ? (
                               <Text>
                                 {" "}
-                                <AntDesign name="checkcircle" size={20} color="#10ac84" />
+                                <AntDesign
+                                  name="checkcircle"
+                                  size={20}
+                                  color="#10ac84"
+                                />
                               </Text>
                             ) : (
                               <Text>
                                 {" "}
-                                <AntDesign name="checkcircleo" size={20} color="#999" />
+                                <AntDesign
+                                  name="checkcircleo"
+                                  size={20}
+                                  color="#999"
+                                />
                               </Text>
                             )}
                           </TouchableOpacity>
                         )}
                       </View>
                     </TouchableOpacity>
-                  )
+                  );
                 })}
 
-                {location && <MosqueCard lat={location.latitude} lng={location.longitude} />}
+                {location && (
+                  <MosqueCard
+                    lat={location.latitude}
+                    lng={location.longitude}
+                  />
+                )}
 
                 {/* Background Azan Setup Component */}
                 {/* <BackgroundAzanSetup prayerTimes={prayerTimes} /> */}
@@ -511,11 +726,13 @@ const handleIntroDismiss = async () => {
       <HijriCalendar
         visible={showHijriCalendar}
         onClose={handleHijriCalendarClose}
-        currentHijriDate={prayerData?.date.hijri.date}
-        currentGregorianDate={prayerData?.date.readable}
+        currentHijriDate={prayerData?.date?.hijri?.date || "1445-06-15"}
+        currentGregorianDate={
+          prayerData?.date?.readable || new Date().toLocaleDateString()
+        }
       />
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -798,4 +1015,62 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 5,
   },
-})
+  // Offline styles
+  offlineIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 107, 107, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 10,
+  },
+  offlineText: {
+    color: "#FF6B6B",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  offlineModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  offlineModalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 20,
+    alignItems: "center",
+    maxWidth: 320,
+  },
+  offlineIconContainer: {
+    marginBottom: 16,
+  },
+  offlineTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  offlineMessage: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  offlineButton: {
+    backgroundColor: "#4A5FBF",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  offlineButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});

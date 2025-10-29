@@ -9,13 +9,13 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NextPrayerCard from "../Prayer/NextPrayerCard";
 import HotelCard, { Hotel } from "./HotelCard";
 
-const hotels  = [
+const hotels = [
   {
     id: "1",
     name: "Luxury Resort and Spa",
@@ -123,23 +123,19 @@ const HotelCardsUI = ({ title }: { title: string }) => {
     isFetchingNextPage,
     isRefetching,
   } = useGetHotelsByStatus({
-   endpoint: "/get-approved-hotels-by-user",
-  queryKey: "approved-hotels",
+    endpoint: "/get-approved-hotels-by-user",
+    queryKey: "approved-hotels",
   });
 
-  console.log("data", data);
+  const restaurantsData =
+    data?.pages?.flatMap((page) => page.restaurants) || [];
 
-const restaurantsData =
-  data?.pages?.flatMap((page) => page.restaurants) || [];
-
-const uniqueRestaurants = Array.from(
-  new Map(restaurantsData.map(item => [item._id, item])).values()
-);
+  const uniqueRestaurants = Array.from(
+    new Map(restaurantsData.map((item) => [item._id, item])).values()
+  );
 
   const [selectedFilter, setSelectedFilter] = useState("All");
   const { user } = useGetuser();
-
-  
 
   // const filteredHotels =
   //   selectedFilter === "All"
@@ -166,11 +162,8 @@ const uniqueRestaurants = Array.from(
     // Open maps with hotel location
   };
 
-
-
   // FlatList render item function
   const renderHotelCard: ListRenderItem<Hotel> = ({ item }) => {
-        
     return (
       <HotelCard
         isUserVendor={user?.role}
@@ -185,8 +178,6 @@ const uniqueRestaurants = Array.from(
   // FlatList item separator
   const ItemSeparator = () => <View style={styles.separator} />;
 
-
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#10ac84" />
@@ -196,51 +187,48 @@ const uniqueRestaurants = Array.from(
         <Text style={styles.headerTitle}>My Hotels</Text>
       </View>
 
-      <NextPrayerCard/>
+      <NextPrayerCard />
 
       {/* Hotel Cards with FlatList */}
-    {/* Hotel Cards with FlatList */}
+      {/* Hotel Cards with FlatList */}
       {restaurantsData.length === 0 ? (
         <View style={styles.noResultsContainer}>
           <Text style={styles.noResultsText}>No hotels found</Text>
         </View>
       ) : (
-       <FlatList
-  refreshControl={
-    <RefreshControl
-      refreshing={isFetching}
-      onRefresh={refetch}
-    />
-  }
-  onEndReached={() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }}
-  data={uniqueRestaurants}
-  keyExtractor={(item) => item._id}
-  overScrollMode="always"
-  scrollEventThrottle={16}
-  renderItem={renderHotelCard}
-  ItemSeparatorComponent={ItemSeparator}
-  contentContainerStyle={styles.flatListContent}
-  showsVerticalScrollIndicator={false}
-  removeClippedSubviews={true}
-  maxToRenderPerBatch={4}
-  windowSize={10}
-  initialNumToRender={4}
-  style={styles.flatList}
-  onEndReachedThreshold={0.1}
-  ListFooterComponent={
-    isFetchingNextPage ? (
-      <ActivityIndicator
-        size={"large"}
-        color={"#888"}
-        style={{ margin: 15, alignSelf: "center" }}
-      />
-    ) : null
-  }
-/>
+        <FlatList
+          refreshControl={
+            <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+          }
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }}
+          data={uniqueRestaurants}
+          keyExtractor={(item) => item._id}
+          overScrollMode="always"
+          scrollEventThrottle={16}
+          renderItem={renderHotelCard}
+          ItemSeparatorComponent={ItemSeparator}
+          contentContainerStyle={styles.flatListContent}
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={4}
+          windowSize={10}
+          initialNumToRender={4}
+          style={styles.flatList}
+          onEndReachedThreshold={0.1}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <ActivityIndicator
+                size={"large"}
+                color={"#888"}
+                style={{ margin: 15, alignSelf: "center" }}
+              />
+            ) : null
+          }
+        />
       )}
     </SafeAreaView>
   );
@@ -327,14 +315,14 @@ const styles = StyleSheet.create({
   },
   noResultsContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
   },
   noResultsText: {
     fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
   },
 });
 

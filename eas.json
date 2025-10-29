@@ -13,7 +13,16 @@
     },
     "production": {
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease",
+        "env": {
+          "EXPO_USE_HERMES": "true"
+        }
+      },
+      "ios": {
+        "env": {
+          "EXPO_USE_HERMES": "true"
+        }
       },
       "autoIncrement": true
     }

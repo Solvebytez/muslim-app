@@ -1,7 +1,7 @@
-import { useGetHotelsByStatus } from "@/hooks/queries/useGetresturentLists"
-import { useGetuser } from "@/hooks/useGetuser"
-import { Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "expo-router"
+import { useGetHotelsByStatus } from "@/hooks/queries/useGetresturentLists";
+import { useGetuser } from "@/hooks/useGetuser";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "expo-router";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,42 +12,48 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import HotelCard, { type Hotel } from "../Hotels/HotelCard"
-import NextPrayerCard from "../Prayer/NextPrayerCard"
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import HotelCard, { type Hotel } from "../Hotels/HotelCard";
+import NextPrayerCard from "../Prayer/NextPrayerCard";
 
 const StatusScreen = ({ title }: { title: string }) => {
-  const { data, fetchNextPage, hasNextPage, isFetching, isLoading, refetch, isRefetching, isFetchingNextPage } =
-    useGetHotelsByStatus({
-      endpoint: "/get-pending-hotels-by-user",
-      queryKey: "pending-hotels",
-      resetOnMount: true, // Add this to reset query on mount
-    })
-const navigation = useNavigation();
-  console.log("data", data)
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isLoading,
+    refetch,
+    isRefetching,
+    isFetchingNextPage,
+  } = useGetHotelsByStatus({
+    endpoint: "/get-pending-hotels-by-user",
+    queryKey: "pending-hotels",
+    resetOnMount: true, // Add this to reset query on mount
+  });
+  const navigation = useNavigation();
 
-  const restaurantsData = data?.pages?.flatMap((page) => page.restaurants) || []
+  const restaurantsData =
+    data?.pages?.flatMap((page) => page.restaurants) || [];
 
-  console.log("restaurantsData", restaurantsData[0])
-
-  const { user } = useGetuser()
+  const { user } = useGetuser();
 
   // Handle card interactions
   const handleCardPress = (hotel: Hotel) => {
-    console.log("Card pressed:", hotel.name)
+    console.log("Card pressed:", hotel.name);
     // Navigate to hotel details screen
-  }
+  };
 
   const handleHeartPress = (hotel: Hotel) => {
-    console.log("Heart pressed:", hotel.name)
+    console.log("Heart pressed:", hotel.name);
     // Add/remove from favorites
-  }
+  };
 
   const handleNavigatePress = (hotel: Hotel) => {
-    console.log("Navigate pressed:", hotel.name)
+    console.log("Navigate pressed:", hotel.name);
     // Open maps with hotel location
-  }
+  };
 
   // FlatList render item function
   const renderHotelCard: ListRenderItem<Hotel> = ({ item }) => {
@@ -59,18 +65,18 @@ const navigation = useNavigation();
         onHeartPress={handleHeartPress}
         onNavigatePress={handleNavigatePress}
       />
-    )
-  }
+    );
+  };
 
   // FlatList item separator
-  const ItemSeparator = () => <View style={styles.separator} />
+  const ItemSeparator = () => <View style={styles.separator} />;
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#10ac84" />
       </View>
-    )
+    );
   }
 
   return (
@@ -79,10 +85,13 @@ const navigation = useNavigation();
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-    <Ionicons name="arrow-back" size={24} color="#fff" />
-    {/* Or use <Text style={styles.backText}>←</Text> */}
-  </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+          {/* Or use <Text style={styles.backText}>←</Text> */}
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>{title}</Text>
       </View>
 
@@ -95,10 +104,12 @@ const navigation = useNavigation();
         </View>
       ) : (
         <FlatList
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+          }
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) {
-              fetchNextPage()
+              fetchNextPage();
             }
           }}
           data={restaurantsData}
@@ -117,14 +128,18 @@ const navigation = useNavigation();
           onEndReachedThreshold={0.1}
           ListFooterComponent={
             isFetchingNextPage || isFetching ? (
-              <ActivityIndicator size={"large"} color={"#888"} style={{ margin: 15, alignSelf: "center" }} />
+              <ActivityIndicator
+                size={"large"}
+                color={"#888"}
+                style={{ margin: 15, alignSelf: "center" }}
+              />
             ) : null
           }
         />
       )}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -132,8 +147,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#0c8566",
   },
   backButton: {
-  marginRight: 12,
-},
+    marginRight: 12,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -224,7 +239,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f5f5f5",
-  }
-})
+  },
+});
 
-export default StatusScreen
+export default StatusScreen;

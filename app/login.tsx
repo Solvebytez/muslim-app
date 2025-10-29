@@ -3,7 +3,7 @@ import JWT from "expo-jwt";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -29,6 +29,7 @@ import { useRouter } from "expo-router";
 
 import axiosInstance from "@/constants/AxiosInstane";
 import useDateTimeLocation from "@/hooks/prayerHooks/useCurrentuserlocateion";
+import NetInfo from "@react-native-community/netinfo";
 import { AxiosError } from "axios";
 import Constants from "expo-constants";
 import { setItemAsync } from "expo-secure-store";
@@ -38,42 +39,83 @@ const googleIcon = require("@/assets/images/icons/search.png");
 
 const secret = Constants.expoConfig?.extra?.APP_API_TOKEN;
 
-
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState("user");
-  const { location, isLoading: locationLoading } = useDateTimeLocation()
+  const [isOnline, setIsOnline] = useState(true);
+  const { location } = useDateTimeLocation();
 
   const router = useRouter();
 
+  // Check network status when login screen loads
+  useEffect(() => {
+    const checkNetworkStatus = async () => {
+      try {
+        const netInfo = await NetInfo.fetch();
+        const isConnected = netInfo.isConnected ?? false;
+        setIsOnline(isConnected);
+
+        // If offline, show alert and redirect to offline welcome
+        if (!isConnected) {
+          Alert.alert(
+            "No Internet Connection",
+            "You need an internet connection to sign in. Please check your connection and try again.",
+            [
+              {
+                text: "Continue Offline",
+                onPress: () => router.replace("/offline-welcome"),
+              },
+            ]
+          );
+        }
+      } catch (error) {
+        console.error("Error checking network status:", error);
+      }
+    };
+
+    checkNetworkStatus();
+  }, [router]);
+
   const configureGoogleSignin = () => {
-    // Handle login logic here
-    if (Platform.OS === "android") {
-      console.log("Android");
-      GoogleSignin.configure({
-        webClientId:
-          "587652399701-3lhoo7eb0d5917ctn4vamusqgorl2748.apps.googleusercontent.com", // Web Client ID
-        offlineAccess: true, // optional
-      });
-    }
+    GoogleSignin.configure({
+      webClientId:
+        "1080606585301-kq8ohu16bgejqnabp0ktjdsaj7blbq57.apps.googleusercontent.com", // Web Client ID
+      iosClientId: Constants.expoConfig?.extra?.EXPO_GOOGLE_IOS_CLIENT_ID, // iOS Client ID from app.json
+      offlineAccess: true, // optional
+    });
   };
 
   useEffect(() => {
     configureGoogleSignin();
   }, []);
 
-
   const handleGoogleSignin = async () => {
+    // Check if offline before attempting sign-in
+    if (!isOnline) {
+      Alert.alert(
+        "No Internet Connection",
+        "You need an internet connection to sign in with Google. Please check your connection and try again.",
+        [
+          {
+            text: "Continue Offline",
+            onPress: () => router.replace("/offline-welcome"),
+          },
+        ]
+      );
+      return;
+    }
+
     try {
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
- console.log("user info***********************", userInfo);
+      console.log("user info***********************", userInfo);
       if (isSuccessResponse(userInfo)) {
         console.log("user info***********************", userInfo.data.user);
 
+        console.log(
+          "🔍 Google Sign-in - Selected user type:",
+          selectedUserType
+        );
         authHandle({
           name:
             userInfo.data.user.name ||
@@ -116,103 +158,109 @@ export default function LoginScreen() {
   };
 
   const signInoptons = async () => {
-     configureGoogleSignin(); // Configure first
-       const currentUser = await GoogleSignin.getCurrentUser();
-        if (currentUser) {
-          await GoogleSignin.signOut();
-          console.log('Google Sign-in logout successful');
-        }
+    configureGoogleSignin(); // Configure first
+    const currentUser = await GoogleSignin.getCurrentUser();
+    if (currentUser) {
+      await GoogleSignin.signOut();
+      console.log("Google Sign-in logout successful");
+    }
     setModalVisible(true);
   };
 
-const authHandle = async ({
-  name,
-  email,
-  avatar,
-  role,
-}: {
-  name: string;
-  email: string;
-  role: string;
-  avatar: string;
-}) => {
-  try {
-    const user = { name, email, avatar, role };
-    const token = JWT.encode(user, secret);    
+  const authHandle = async ({
+    name,
+    email,
+    avatar,
+    role,
+  }: {
+    name: string;
+    email: string;
+    role: string;
+    avatar: string;
+  }) => {
+    try {
+      const user = { name, email, avatar, role };
+      console.log("🔍 JWT Token - User data being encoded:", user);
+      const token = JWT.encode(user, secret);
       await setItemAsync("avatar", avatar); // Fixed to use SecureStore
-    const response = await axiosInstance.post("/google-login", {
-      signInToken: token, // Fixed typo here (was signInTokn)
-      location:{
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-        city: location?.city,
-        region: location?.region,
-        country: location?.country,
-        postalCode: location?.postalCode
-      }
-    });
+      const response = await axiosInstance.post("/google-login", {
+        signInToken: token, // Fixed typo here (was signInTokn)
+        location: {
+          latitude: location?.latitude,
+          longitude: location?.longitude,
+          city: location?.city,
+          region: location?.region,
+          country: location?.country,
+          postalCode: location?.postalCode,
+        },
+      });
 
-    console.log("✅ Server responded:", response?.status, response?.data.data);
+      console.log(
+        "✅ Server responded:",
+        response?.status,
+        response?.data.data
+      );
 
-    if (response?.status === 200 || response?.status === 201) {
-      const accessToken = response?.data.data.accessToken;
-       const roleData = response?.data.data.role;
-      if (accessToken) {
-        console.log("🔐 Storing access token...");
-        await setItemAsync("accessToken", accessToken); // Fixed to use SecureStore
-      
-         await setItemAsync("role", roleData); // Fixed to use SecureStore
-         if(roleData === 'user'){
-           router.replace("/(tabs)");
-         }else{
-           router.replace("/(tabs)/add-hotel");
-         }
-        
+      if (response?.status === 200 || response?.status === 201) {
+        const accessToken = response?.data.data.accessToken;
+        const roleData = response?.data.data.role;
+        console.log("🔍 Login Response - Server role:", roleData);
+        console.log("🔍 Login Response - Selected role:", selectedUserType);
+        console.log("🔍 Login Response - Full response:", response?.data.data);
+
+        if (accessToken) {
+          console.log("🔐 Storing user data...");
+          await setItemAsync("accessToken", accessToken);
+          await setItemAsync("name", name);
+          await setItemAsync("email", email);
+          await setItemAsync("role", roleData);
+          if (roleData === "user") {
+            router.replace("/(tabs)");
+          } else {
+            router.replace("/(tabs)/add-hotel");
+          }
+        } else {
+          console.warn("⚠️ Access token missing in response.");
+          throw new Error("Access token missing in response");
+        }
       } else {
-        console.warn("⚠️ Access token missing in response."); 
-        throw new Error("Access token missing in response");
+        console.warn("⚠️ Unexpected status code:", response.status);
+        throw new Error(`Unexpected status code: ${response.status}`);
       }
-    } else {
-      console.warn("⚠️ Unexpected status code:", response.status);
-      throw new Error(`Unexpected status code: ${response.status}`);
-    }
-  } catch (error: unknown) {
-    console.log("❌ Google Sign-In Error (full details)");
+    } catch (error: unknown) {
+      console.log("❌ Google Sign-In Error (full details)");
 
-    if (error instanceof AxiosError) {
-      // TypeScript now knows this is an AxiosError
-      if (error.response) {
-        console.log("🔴 Response error:");
-        console.log("Status:", error.response.status);
-        console.log("Data:", error.response.data);
-        console.log("Headers:", error.response.headers);
-      } else if (error.request) {
-        console.log("🟡 No response from server (network error)");
-        console.log("Request:", error.request);
+      if (error instanceof AxiosError) {
+        // TypeScript now knows this is an AxiosError
+        if (error.response) {
+          console.log("🔴 Response error:");
+          console.log("Status:", error.response.status);
+          console.log("Data:", error.response.data);
+          console.log("Headers:", error.response.headers);
+        } else if (error.request) {
+          console.log("🟡 No response from server (network error)");
+          console.log("Request:", error.request);
+        } else {
+          console.log("🔵 Axios setup error:", error.message);
+        }
+        console.log("Config:", error.config);
+      } else if (error instanceof Error) {
+        console.log("🟣 Non-Axios Error:", error.message);
+        console.log("Stack Trace:", error.stack);
       } else {
-        console.log("🔵 Axios setup error:", error.message);
+        console.log("⚫ Unknown error type:", typeof error);
+        console.log("Error object:", error);
       }
-      console.log("Config:", error.config);
-    } else if (error instanceof Error) {
-      console.log("🟣 Non-Axios Error:", error.message);
-      console.log("Stack Trace:", error.stack);
-    } else {
-      console.log("⚫ Unknown error type:", typeof error);
-      console.log("Error object:", error);
+
+      // Re-throw the error if you want calling code to handle it
+      throw error;
     }
-    
-    // Re-throw the error if you want calling code to handle it
-    throw error;
-  }
-};
+  };
 
- if(!location || locationLoading) {
-   return <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#10ac84" }}>
-        <ActivityIndicator size="large" color="white" />
-      </View>
- }
+  // Don't block on location - show login screen immediately
+  // Location will be handled in background
 
- console.log("Location coordinates:", location);
+  console.log("Location coordinates:", location);
 
   return (
     <LinearGradient colors={["#44A08D", "#093637"]} style={styles.container}>
@@ -223,6 +271,14 @@ const authHandle = async ({
           style={styles.keyboardAvoid}
         >
           <View style={styles.content}>
+            {/* Offline indicator */}
+            {!isOnline && (
+              <View style={styles.offlineIndicator}>
+                <Ionicons name="wifi-outline" size={16} color="#FF6B6B" />
+                <Text style={styles.offlineText}>No Internet Connection</Text>
+              </View>
+            )}
+
             <ThemedText type="title" style={{ lineHeight: 40, color: "white" }}>
               Sign in
             </ThemedText>
@@ -286,7 +342,7 @@ const authHandle = async ({
                 onPress={() => setSelectedUserType("user")}
               />
               <RadioButton
-                label="Seller"
+                label="Restaurant Owner"
                 selected={selectedUserType === "vendor"}
                 onPress={() => setSelectedUserType("vendor")}
               />
@@ -297,7 +353,8 @@ const authHandle = async ({
               onPress={handleGoogleSignin}
             >
               <Text style={styles.continueButtonText}>
-                Continue as {selectedUserType}
+                Continue as{" "}
+                {selectedUserType === "user" ? "User" : "Restaurant Owner"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -484,5 +541,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     marginBottom: 30,
+  },
+  // Offline indicator styles
+  offlineIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 107, 107, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 16,
+    alignSelf: "center",
+  },
+  offlineText: {
+    color: "#FF6B6B",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
   },
 });

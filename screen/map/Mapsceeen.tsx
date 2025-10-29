@@ -1,106 +1,126 @@
-"use client"
+"use client";
 
-import AddToWishlist from "@/components/AddToWishlist"
-import { ThemedText } from "@/components/ThemedText"
-import { useStableCoordinates } from "@/hooks/prayerHooks/useCurrentuserlocateion"
-import { type Restaurant, useNearestRestaurants } from "@/hooks/queries/useGetresturentLists"
-import { Ionicons } from "@expo/vector-icons"
-import { useCallback, useMemo, useState } from "react"
+import AddToWishlist from "@/components/AddToWishlist";
+import { ThemedText } from "@/components/ThemedText";
+import { useStableCoordinates } from "@/hooks/prayerHooks/useCurrentuserlocateion";
+import {
+  type Restaurant,
+  useNearestRestaurants,
+} from "@/hooks/queries/useGetresturentLists";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   RefreshControl,
-  SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
-  View
-} from "react-native"
-import { NavigationButton } from "../Hotels/navigation"
-import NextPrayerCard from "../Prayer/NextPrayerCard"
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { NavigationButton } from "../Hotels/navigation";
+import NextPrayerCard from "../Prayer/NextPrayerCard";
 
 export default function Mapscreen() {
-  const [timeLeft, setTimeLeft] = useState({
-    hours: 1,
-    minutes: 35,
-    seconds: 22,
-  })
+  const defaultLat = 43.6532;
+  const defaultLng = -79.3832;
 
-  const defaultLat = 43.6532
-  const defaultLng = -79.3832
-
-  const { coordinates: location, isLoading: locationLoading } = useStableCoordinates(defaultLat, defaultLng)
+  const { coordinates: location, isLoading: locationLoading } =
+    useStableCoordinates(defaultLat, defaultLng);
 
   const coordinates = useMemo(() => {
-    const lat = location?.latitude ?? defaultLat
-    const lng = location?.longitude ?? defaultLng
-    return { latitude: lat, longitude: lng }
-  }, [defaultLat, defaultLng, location?.latitude, location?.longitude])
+    const lat = location?.latitude ?? defaultLat;
+    const lng = location?.longitude ?? defaultLng;
+    return { latitude: lat, longitude: lng };
+  }, [defaultLat, defaultLng, location?.latitude, location?.longitude]);
 
-  // Use the updated hook with refresh options
+  // Optimized API call with smart caching
   const {
     data: restaurantsData,
     isLoading: restaurantsLoading,
-    error: restaurantsError,
     refetch: refetchRestaurants,
   } = useNearestRestaurants(
     {
-      lat: defaultLat ?? defaultLat,
-      lng: defaultLng ?? defaultLng,
+      lat: coordinates.latitude ?? defaultLat,
+      lng: coordinates.longitude ?? defaultLng,
     },
     {
-      resetOnMount: true, // Reset cache on mount
-      forceRefresh: true, // Always fetch fresh data
-    },
-  )
+      resetOnMount: false, // Use cache
+      forceRefresh: false, // Allow caching
+    }
+  );
 
-  const formatTime = (time: number) => time.toString().padStart(2, "0")
+  // Track if we've already fetched with real location
+  const hasFetchedWithRealLocation = useRef(false);
+
+  // Refetch restaurants when real location becomes available
+  useEffect(() => {
+    const isRealLocation =
+      coordinates.latitude !== defaultLat ||
+      coordinates.longitude !== defaultLng;
+
+    if (isRealLocation && !hasFetchedWithRealLocation.current) {
+      hasFetchedWithRealLocation.current = true;
+      refetchRestaurants();
+    }
+  }, [
+    coordinates.latitude,
+    coordinates.longitude,
+    defaultLat,
+    defaultLng,
+    refetchRestaurants,
+  ]);
 
   // Pull to refresh handler
   const onRefresh = useCallback(async () => {
-    await refetchRestaurants()
-  }, [refetchRestaurants])
+    await refetchRestaurants();
+  }, [refetchRestaurants]);
 
-  console.log("coordinates@@@@@@@@@@@@@@@@@", coordinates)
-
-  const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => (
-    console.log("restaurant", restaurant),
-    (
+  // Memoized RestaurantCard component for better performance
+  const RestaurantCard = React.memo(
+    ({ restaurant }: { restaurant: Restaurant }) => (
       <View style={styles.restaurantCard}>
-        <AddToWishlist isInWishlist={restaurant.isInWishlist} hotelID={restaurant._id} />
-        <Image source={{ uri: restaurant.image?.url ?? "" }} style={styles.restaurantImage} />
+        <AddToWishlist
+          isInWishlist={restaurant.isInWishlist}
+          hotelID={restaurant._id}
+        />
+        <Image
+          source={{ uri: restaurant.image?.url ?? "" }}
+          style={styles.restaurantImage}
+          resizeMode="cover"
+        />
         <View style={styles.restaurantOverlay}>
           <View style={styles.restaurantHeader}>
-            <ThemedText style={styles.restaurantName}>{restaurant.name}</ThemedText>
+            <ThemedText style={styles.restaurantName}>
+              {restaurant.name}
+            </ThemedText>
           </View>
 
-            <ThemedText style={styles.hotelDescription}>
-                    <ThemedText style={{
-                      fontWeight: "bold",
-                      fontSize:14
-                    }}>Cuisine:
-                      </ThemedText>
-                       {""} {restaurant.cuisine.join(", ")}
-                  </ThemedText>
+          <ThemedText style={styles.hotelDescription}>
+            <ThemedText style={styles.boldText}>Cuisine:</ThemedText>
+            {` ${restaurant.cuisine.join(", ")}`}
+          </ThemedText>
 
-                   <ThemedText style={styles.hotelDescription}>
-                     <ThemedText style={{
-                      fontWeight: "bold",
-                      fontSize:14
-                    }}>Suppliers:
-                      </ThemedText> {""} {restaurant.suppliers.join(", ")}
-                  </ThemedText>
+          <ThemedText style={styles.hotelDescription}>
+            <ThemedText style={styles.boldText}>Suppliers:</ThemedText>
+            {` ${restaurant.suppliers.join(", ")}`}
+          </ThemedText>
 
           <View style={styles.restaurantDetails}>
             <View style={styles.detailRow}>
               <Ionicons name="location-outline" size={16} color="#10ac84" />
-              <ThemedText style={styles.addressText}>{restaurant.address}</ThemedText>
+              <ThemedText style={styles.addressText}>
+                {restaurant.address}
+              </ThemedText>
             </View>
 
             <View style={styles.bottomRow}>
               <View style={styles.ratingContainer}>
                 <Ionicons name="star" size={16} color="#ffa502" />
-                <ThemedText style={styles.ratingText}>{restaurant.rating}</ThemedText>
+                <ThemedText style={styles.ratingText}>
+                  {restaurant.rating}
+                </ThemedText>
               </View>
 
               <ThemedText style={styles.distanceText}>
@@ -109,8 +129,8 @@ export default function Mapscreen() {
             </View>
 
             <NavigationButton
-              latitude={coordinates.longitude}
-              longitude={coordinates.latitude}
+              latitude={restaurant.location.coordinates[0]}
+              longitude={restaurant.location.coordinates[1]}
               label={restaurant.address}
               placeId={restaurant.placeId ?? ""}
             />
@@ -118,96 +138,185 @@ export default function Mapscreen() {
         </View>
       </View>
     )
-  )
+  );
 
-  const isLoadingData = locationLoading || restaurantsLoading
+  // Add display name for debugging
+  RestaurantCard.displayName = "RestaurantCard";
+
+  // Optimized loading state - only show loading when restaurants are loading and no data
+  const isLoadingData = useMemo(() => {
+    return restaurantsLoading && !restaurantsData;
+  }, [restaurantsLoading, restaurantsData]);
+
+  // Memoized restaurant data
+  const restaurants = useMemo(() => {
+    return (restaurantsData?.data as any)?.restaurants || [];
+  }, [restaurantsData]);
+
+  // Render item for FlatList
+  const renderRestaurantItem = useCallback(
+    ({ item }: { item: Restaurant }) => <RestaurantCard restaurant={item} />,
+    [RestaurantCard]
+  );
+
+  // Key extractor for FlatList
+  const keyExtractor = useCallback((item: Restaurant) => item._id, []);
+
+  // Dynamic content container style - full height when empty
+  const contentContainerStyle = useMemo(() => {
+    return restaurants.length === 0
+      ? [styles.listContent, { flexGrow: 1 }]
+      : styles.listContent;
+  }, [restaurants.length]);
+
+  // Empty component
+  const EmptyComponent = useCallback(
+    () => (
+      <View style={styles.emptyContainer}>
+        <ThemedText style={styles.emptyText}>
+          No restaurants found nearby.
+        </ThemedText>
+      </View>
+    ),
+    []
+  );
+
+  // Loading component
+  const LoadingComponent = useCallback(
+    () => (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#10ac84" />
+        <ThemedText style={styles.loadingText}>
+          Loading restaurants...
+        </ThemedText>
+      </View>
+    ),
+    []
+  );
+
+  // Location waiting component for first-time users
+  const LocationWaitingComponent = useCallback(
+    () => (
+      <View style={styles.locationWaitingContainer}>
+        <View style={styles.locationWaitingCard}>
+          <ActivityIndicator size="large" color="#10ac84" />
+          <ThemedText style={styles.locationWaitingTitle}>
+            Getting Your Location
+          </ThemedText>
+          <ThemedText style={styles.locationWaitingMessage}>
+            We&apos;re finding your current location to show you the nearest
+            halal restaurants and accurate prayer times.
+          </ThemedText>
+          <ThemedText style={styles.locationWaitingSubtext}>
+            This may take a few moments...
+          </ThemedText>
+        </View>
+      </View>
+    ),
+    []
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#10ac84" />
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#10ac84"
+        translucent
+      />
 
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header with dynamic safe area padding */}
+      <SafeAreaView style={styles.header} edges={["top"]}>
         <ThemedText style={styles.headerTitle}>Halal Places</ThemedText>
-        <ThemedText style={styles.headerSubtitle}>(Fresh Data on Every Load)</ThemedText>
-      </View>
-
-      <NextPrayerCard />
-
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1,paddingBottom:30 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={restaurantsLoading}
-            onRefresh={onRefresh}
-            colors={["#10ac84"]}
-            tintColor="#10ac84"
-          />
-        }
-      >
-        {isLoadingData ? (
-          <ActivityIndicator size="large" color="white" style={{ marginTop: 40 }} />
-        ) : (restaurantsData?.data as any)?.restaurants?.length === 0 ? (
-          <View
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              alignItems: "center",
-              paddingHorizontal: 20,
-            }}
-          >
-            <ThemedText
-              style={{
-                fontSize: 16,
-                fontWeight: "bold",
-                color: "#333",
-                textAlign: "center",
-              }}
-            >
-              No restaurants found nearby.
+        {coordinates.latitude === defaultLat &&
+          coordinates.longitude === defaultLng && (
+            <ThemedText style={styles.locationStatus}>
+              Using default location - Getting your location...
             </ThemedText>
-          </View>
+          )}
+      </SafeAreaView>
+
+      {!locationLoading && <NextPrayerCard />}
+
+      <View style={styles.contentContainer}>
+        {locationLoading ? (
+          <LocationWaitingComponent />
+        ) : isLoadingData ? (
+          <LoadingComponent />
         ) : (
-          <View style={styles.restaurantsSection}>
-            <ThemedText style={styles.sectionTitle}>Nearby Halal Restaurants</ThemedText>
-            {(restaurantsData?.data as any).restaurants?.map((restaurant: Restaurant) => (
-              <RestaurantCard key={restaurant._id} restaurant={restaurant} />
-            ))}
-          </View>
+          <FlatList
+            data={restaurants}
+            renderItem={renderRestaurantItem}
+            keyExtractor={keyExtractor}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={contentContainerStyle}
+            refreshControl={
+              <RefreshControl
+                refreshing={restaurantsLoading}
+                onRefresh={onRefresh}
+                colors={["#10ac84"]}
+                tintColor="#10ac84"
+              />
+            }
+            ListEmptyComponent={EmptyComponent}
+            ListHeaderComponent={
+              restaurants.length > 0 ? (
+                <ThemedText style={styles.sectionTitle}>
+                  Nearby Halal Restaurants
+                </ThemedText>
+              ) : null
+            }
+            // Performance optimizations
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            initialNumToRender={5}
+            getItemLayout={(data, index) => ({
+              length: 300, // Approximate item height
+              offset: 300 * index,
+              index,
+            })}
+          />
         )}
-      </ScrollView>
-    </SafeAreaView>
-  )
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#10ac84",
   },
   header: {
     backgroundColor: "#10ac84",
-    paddingVertical: 20,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 14,
+  locationStatus: {
+    fontSize: 12,
     color: "#fff",
-    opacity: 0.9,
+    opacity: 0.8,
+    marginTop: 4,
+    textAlign: "center",
   },
   content: {
     flex: 1,
     padding: 16,
-   
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 30,
   },
   prayerTimer: {
     backgroundColor: "#ffa502",
@@ -329,9 +438,80 @@ const styles = StyleSheet.create({
     color: "#10ac84",
     fontWeight: "600",
   },
-    hotelDescription: {
+  hotelDescription: {
     fontSize: 14,
     color: "#666",
     marginBottom: 8,
   },
-})
+  boldText: {
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#10ac84",
+    fontWeight: "500",
+  },
+  locationWaitingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  locationWaitingCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 30,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    maxWidth: 320,
+  },
+  locationWaitingTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    marginTop: 16,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  locationWaitingMessage: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  locationWaitingSubtext: {
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+});

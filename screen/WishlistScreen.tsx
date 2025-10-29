@@ -1,8 +1,8 @@
-import { useGetWishlist } from "@/hooks/queries/useGetWishlist"
-import { useGetuser } from "@/hooks/useGetuser"
-import { Ionicons } from "@expo/vector-icons"
-import { useFocusEffect, useNavigation } from "expo-router"
-import { useCallback } from "react"
+import { useGetWishlist } from "@/hooks/queries/useGetWishlist";
+import { useGetuser } from "@/hooks/useGetuser";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useNavigation } from "expo-router";
+import React, { useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,50 +12,50 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import HotelCard, { type Hotel } from "./Hotels/HotelCard"
-import NextPrayerCard from "./Prayer/NextPrayerCard"
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import HotelCard, { type Hotel } from "./Hotels/HotelCard";
+import NextPrayerCard from "./Prayer/NextPrayerCard";
 
-const WishlistScreen = ({ title }: { title?: string }) => {
+const WishlistScreen = React.memo(({ title }: { title?: string }) => {
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetching,
-    isLoading,
     refetch,
     isFetchingNextPage,
   } = useGetWishlist({
     endpoint: "/get-wishlist",
     queryKey: "user-wishlist",
-  })
+  });
 
-  const navigation = useNavigation()
-  const { user } = useGetuser()
+  const navigation = useNavigation();
+  const { user } = useGetuser();
 
-  const wishlistRestaurants = data?.pages?.flatMap((page: any) => page.restaurants) || []
+  const wishlistRestaurants =
+    data?.pages?.flatMap((page: any) => page.restaurants) || [];
 
   // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      refetch()
+      refetch();
     }, [refetch])
-  )
+  );
 
   const handleCardPress = (hotel: Hotel) => {
-    console.log("Card pressed:", hotel.name)
-  }
+    console.log("Card pressed:", hotel.name);
+  };
 
   const handleHeartPress = (hotel: Hotel) => {
-    console.log("Heart pressed:", hotel.name)
-  }
+    console.log("Heart pressed:", hotel.name);
+  };
 
   const handleNavigatePress = (hotel: Hotel) => {
-    console.log("Navigate pressed:", hotel.name)
-  }
+    console.log("Navigate pressed:", hotel.name);
+  };
 
-  const ItemSeparator = () => <View style={styles.separator} />
+  const ItemSeparator = () => <View style={styles.separator} />;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -63,7 +63,10 @@ const WishlistScreen = ({ title }: { title?: string }) => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{title}</Text>
@@ -80,21 +83,27 @@ const WishlistScreen = ({ title }: { title?: string }) => {
         <FlatList
           data={wishlistRestaurants}
           keyExtractor={(item) => item._id}
-          renderItem={({ item }) => (
-            <View key={item._id} style={{ marginBottom: 25 }}>
-              <HotelCard
-                isUserVendor={user?.role}
-                hotel={item}
-                onPress={handleCardPress}
-                onHeartPress={handleHeartPress}
-                onNavigatePress={handleNavigatePress}
-              />
-            </View>
-          )}
-          refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
+          renderItem={({ item }) => {
+            // Ensure we have a valid user role, default to "user" if undefined
+            const userRole = user?.role || "user";
+            return (
+              <View key={item._id} style={{ marginBottom: 25 }}>
+                <HotelCard
+                  isUserVendor={userRole}
+                  hotel={item}
+                  onPress={handleCardPress}
+                  onHeartPress={handleHeartPress}
+                  onNavigatePress={handleNavigatePress}
+                />
+              </View>
+            );
+          }}
+          refreshControl={
+            <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+          }
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) {
-              fetchNextPage()
+              fetchNextPage();
             }
           }}
           ItemSeparatorComponent={ItemSeparator}
@@ -108,14 +117,20 @@ const WishlistScreen = ({ title }: { title?: string }) => {
           onEndReachedThreshold={0.1}
           ListFooterComponent={
             isFetchingNextPage ? (
-              <ActivityIndicator size="large" color="#888" style={{ margin: 15, alignSelf: "center" }} />
+              <ActivityIndicator
+                size="large"
+                color="#888"
+                style={{ margin: 15, alignSelf: "center" }}
+              />
             ) : null
           }
         />
       )}
     </SafeAreaView>
-  )
-}
+  );
+});
+
+WishlistScreen.displayName = "WishlistScreen";
 
 const styles = StyleSheet.create({
   container: {
@@ -161,6 +176,6 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
   },
-})
+});
 
-export default WishlistScreen
+export default WishlistScreen;

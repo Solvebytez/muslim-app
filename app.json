@@ -14,29 +14,43 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show prayer times and nearby mosques.",
         "NSLocationAlwaysUsageDescription": "Your location helps us provide accurate guidance features at all times.",
-        "UIBackgroundModes": ["audio", "background-processing", "background-fetch"],
-        "NSUserNotificationsUsageDescription": "We need notification permission to remind you of prayer times with azan."
+        "UIBackgroundModes": [
+          "audio",
+          "background-processing",
+          "background-fetch",
+          "audio",
+          "background-processing",
+          "background-fetch"
+        ],
+        "NSUserNotificationsUsageDescription": "We need notification permission to remind you of prayer times with azan.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "versionCode": 40,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.sahin05.muslimguide",
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
+      "largeHeap": true,
       "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "WAKE_LOCK",
-        "USE_FULL_SCREEN_INTENT",
-        "SYSTEM_ALERT_WINDOW",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
         "android.permission.WAKE_LOCK",
+        "android.permission.USE_FULL_SCREEN_INTENT",
+        "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.USE_EXACT_ALARM"
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -45,6 +59,21 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.facebook.hermes.unicode.** { *; }",
+            "packagingOptions": {
+              "jniLibs": {
+                "useLegacyPackaging": false
+              }
+            }
+          }
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -63,7 +92,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.587652399701-esvihdmj5v2c1an425fut35vkdgramop"
+          "iosUrlScheme": "com.googleusercontent.apps.1080606585301-eep2fi6uk8e50r953cd2ajfl2ngh9jd4"
         }
       ],
       "expo-router",
@@ -85,7 +114,11 @@
       [
         "expo-task-manager",
         {
-          "backgroundModes": ["background-processing", "background-fetch", "audio"]
+          "backgroundModes": [
+            "background-processing",
+            "background-fetch",
+            "audio"
+          ]
         }
       ]
     ],
@@ -95,7 +128,8 @@
     "extra": {
       "APP_API_TOKEN": "asf2e9996686b942552d8457f58888de149fcd4f763dfce5ce5e0bfdcfe4ddb1adca35e775sdfc434c682d",
       "EXPO_PUBLIC_BASE_URL": "https://api.muslimcompass.io",
-      "GOOGLE_PLACES_API_KEY": "AIzaSyD0p_NWoD1snHw08frmTfpKLHv0aeom_sA",
+      "GOOGLE_PLACES_API_KEY": "AIzaSyClXvtoj2ZPPeLW0r5-6_a0e6xKvjh2pIU",
+      "EXPO_GOOGLE_IOS_CLIENT_ID": "1080606585301-eep2fi6uk8e50r953cd2ajfl2ngh9jd4.apps.googleusercontent.com",
       "router": {},
       "eas": {
         "projectId": "a973b7e8-3887-4e01-bbfb-c88c8c950e7c"

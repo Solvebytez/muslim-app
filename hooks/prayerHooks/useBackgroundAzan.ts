@@ -1,18 +1,19 @@
-"use client"
+"use client";
 
-import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av"
-import * as Notifications from "expo-notifications"
-import type { TaskManagerTaskBody } from "expo-task-manager"
-import * as TaskManager from "expo-task-manager"
-import { useCallback, useEffect, useRef } from "react"
-import { AppState, Platform } from "react-native"
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
+import * as Notifications from "expo-notifications";
+import type { TaskManagerTaskBody } from "expo-task-manager";
+import * as TaskManager from "expo-task-manager";
+import { useCallback, useEffect, useRef } from "react";
+import { AppState, Platform } from "react-native";
 
-const BACKGROUND_NOTIFICATION_TASK = "background-notification-task"
+const BACKGROUND_NOTIFICATION_TASK = "background-notification-task";
 
 // Enhanced notification handler for background azan
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    const { soundEnabled, prayerName, isAzanNotification } = notification.request.content.data || {}
+    const { soundEnabled, prayerName, isAzanNotification } =
+      notification.request.content.data || {};
 
     // For azan notifications, we want maximum priority
     if (isAzanNotification && soundEnabled) {
@@ -25,7 +26,7 @@ Notifications.setNotificationHandler({
         priority: Notifications.AndroidNotificationPriority.MAX,
         // Use custom sound for azan
         sound: "azan.mp3",
-      }
+      };
     }
 
     return {
@@ -35,32 +36,38 @@ Notifications.setNotificationHandler({
       shouldShowBanner: true,
       shouldShowList: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
-    }
+    };
   },
-})
+});
 
 // Background task for handling notifications - Fixed to return Promise
-TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }: TaskManagerTaskBody<any>) => {
-  if (error) {
-    console.error("Background notification task error:", error)
-    return
-  }
+TaskManager.defineTask(
+  BACKGROUND_NOTIFICATION_TASK,
+  async ({ data, error }: TaskManagerTaskBody<any>) => {
+    if (error) {
+      console.error("Background notification task error:", error);
+      return;
+    }
 
-  if (data) {
-    const { notification } = data as any
-    const { prayerName, soundEnabled, isAzanNotification } = notification?.request?.content?.data || {}
+    if (data) {
+      const { notification } = data as any;
+      const { prayerName, soundEnabled, isAzanNotification } =
+        notification?.request?.content?.data || {};
 
-    console.log(`Background task: ${prayerName} prayer notification received`)
+      console.log(
+        `Background task: ${prayerName} prayer notification received`
+      );
 
-    if (isAzanNotification && soundEnabled) {
-      // The system will handle playing the custom sound
-      console.log(`Playing azan for ${prayerName} in background`)
+      if (isAzanNotification && soundEnabled) {
+        // The system will handle playing the custom sound
+        console.log(`Playing azan for ${prayerName} in background`);
+      }
     }
   }
-})
+);
 
 export const useBackgroundAzan = () => {
-  const appState = useRef(AppState.currentState)
+  const appState = useRef(AppState.currentState);
 
   // Setup background audio configuration
   useEffect(() => {
@@ -75,48 +82,51 @@ export const useBackgroundAzan = () => {
           playThroughEarpieceAndroid: false,
           interruptionModeIOS: InterruptionModeIOS.DoNotMix,
           interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        })
+        });
 
-        console.log("✅ Background audio configured")
+        console.log("✅ Background audio configured");
       } catch (error) {
-        console.error("❌ Error configuring background audio:", error)
+        console.error("❌ Error configuring background audio:", error);
       }
-    }
+    };
 
-    setupBackgroundAudio()
-  }, [])
+    setupBackgroundAudio();
+  }, []);
 
   // Register background task
   useEffect(() => {
     const registerBackgroundTask = async () => {
       try {
-        const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_NOTIFICATION_TASK)
+        const isRegistered = await TaskManager.isTaskRegisteredAsync(
+          BACKGROUND_NOTIFICATION_TASK
+        );
         if (!isRegistered) {
-          await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK)
-          console.log("✅ Background notification task registered")
+          await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+          console.log("✅ Background notification task registered");
         }
       } catch (error) {
-        console.error("❌ Error registering background task:", error)
+        console.error("❌ Error registering background task:", error);
       }
-    }
+    };
 
-    registerBackgroundTask()
+    registerBackgroundTask();
 
     return () => {
       // Cleanup if needed
-      TaskManager.unregisterTaskAsync(BACKGROUND_NOTIFICATION_TASK).catch(console.error)
-    }
-  }, [])
+      TaskManager.unregisterTaskAsync(BACKGROUND_NOTIFICATION_TASK).catch(
+        console.error
+      );
+    };
+  }, []);
 
   // Monitor app state changes
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
-      console.log(`📱 App state changed: ${appState.current} → ${nextAppState}`)
-      appState.current = nextAppState
-    })
+      appState.current = nextAppState;
+    });
 
-    return () => subscription?.remove()
-  }, [])
+    return () => subscription?.remove();
+  }, []);
 
   // Enhanced notification permissions request
   const requestEnhancedPermissions = useCallback(async () => {
@@ -129,32 +139,32 @@ export const useBackgroundAzan = () => {
           allowDisplayInCarPlay: true,
           allowCriticalAlerts: true,
           allowProvisional: false,
-         // allowAnnouncements: true,
+          // allowAnnouncements: true,
         },
         android: {
           allowAlert: true,
           allowBadge: true,
           allowSound: true,
         },
-      })
+      });
 
       if (status === "granted") {
         // Setup notification channels for Android
         if (Platform.OS === "android") {
-          await setupAndroidNotificationChannels()
+          await setupAndroidNotificationChannels();
         }
 
-        console.log("✅ Enhanced notification permissions granted")
-        return true
+        console.log("✅ Enhanced notification permissions granted");
+        return true;
       } else {
-        console.log("⚠️ Enhanced notification permissions denied")
-        return false
+        console.log("⚠️ Enhanced notification permissions denied");
+        return false;
       }
     } catch (error) {
-      console.error("❌ Error requesting enhanced permissions:", error)
-      return false
+      console.error("❌ Error requesting enhanced permissions:", error);
+      return false;
     }
-  }, [])
+  }, []);
 
   // Setup Android notification channels with high priority
   const setupAndroidNotificationChannels = async () => {
@@ -170,8 +180,9 @@ export const useBackgroundAzan = () => {
         enableLights: true,
         bypassDnd: true,
         showBadge: true,
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      })
+        lockscreenVisibility:
+          Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
 
       // Regular prayer notifications
       await Notifications.setNotificationChannelAsync("prayer-times", {
@@ -183,16 +194,14 @@ export const useBackgroundAzan = () => {
         enableVibrate: true,
         enableLights: true,
         showBadge: true,
-      })
-
-      console.log("✅ Android notification channels configured")
+      });
     } catch (error) {
-      console.error("❌ Error setting up Android channels:", error)
+      console.error("❌ Error setting up Android channels:", error);
     }
-  }
+  };
 
   return {
     requestEnhancedPermissions,
     setupAndroidNotificationChannels,
-  }
-}
+  };
+};

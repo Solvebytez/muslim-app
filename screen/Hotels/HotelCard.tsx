@@ -2,13 +2,7 @@ import AddToWishlist from "@/components/AddToWishlist";
 import { ThemedText } from "@/components/ThemedText";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import {
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { NavigationButton } from "./navigation";
 
 type ImageProps = {
@@ -78,24 +72,26 @@ const HotelCard: React.FC<HotelCardProps> = ({
     onPress?.(hotel);
   };
 
-
   return (
     <TouchableOpacity style={styles.card} onPress={handleCardPress}>
       {/* Hotel Image */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: hotel.image?.url }} style={styles.cardImage} />
         {isUserVendor === "user" && (
-         <AddToWishlist isInWishlist={hotel.isInWishlist} hotelID={hotel._id}  />
+          <AddToWishlist
+            isInWishlist={hotel.isInWishlist}
+            hotelID={hotel._id}
+          />
         )}
-        {
-          hotel.isApproved !== "approved" && (
-            <View style={styles.pendingContainer}>
-              <Text style={styles.pendingText}>
-                {hotel.isApproved === "pending" ? "Waiting for approval" : "Rejected"}
-              </Text>
-            </View>
-          )
-        }
+        {hotel.isApproved !== "approved" && (
+          <View style={styles.pendingContainer}>
+            <Text style={styles.pendingText}>
+              {hotel.isApproved === "pending"
+                ? "Waiting for approval"
+                : "Rejected"}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Hotel Content */}
@@ -105,20 +101,28 @@ const HotelCard: React.FC<HotelCardProps> = ({
         </View>
 
         <Text style={styles.hotelDescription}>
-          <ThemedText style={{
-                              fontWeight: "bold",
-                              fontSize:14
-                            }}>Cuisine:
-                              </ThemedText>  {hotel.cuisine.join(", ")}
+          <ThemedText
+            style={{
+              fontWeight: "bold",
+              fontSize: 14,
+            }}
+          >
+            Cuisine:
+          </ThemedText>{" "}
+          {hotel.cuisine.join(", ")}
         </Text>
 
         <ThemedText style={styles.hotelDescription}>
-                             <ThemedText style={{
-                              fontWeight: "bold",
-                              fontSize:14
-                            }}>Suppliers:
-                              </ThemedText> {hotel.suppliers.join(", ")}
-                          </ThemedText>
+          <ThemedText
+            style={{
+              fontWeight: "bold",
+              fontSize: 14,
+            }}
+          >
+            Suppliers:
+          </ThemedText>{" "}
+          {hotel.suppliers.join(", ")}
+        </ThemedText>
 
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={14} color="#10ac84" />
@@ -146,7 +150,6 @@ const HotelCard: React.FC<HotelCardProps> = ({
           longitude={hotel.location?.coordinates[1]!}
           label={hotel.name}
         />
-        
       </View>
     </TouchableOpacity>
   );
@@ -175,7 +178,7 @@ const styles = StyleSheet.create({
     height: "100%",
     resizeMode: "cover",
   },
- 
+
   cardContent: {
     padding: 16,
   },
@@ -254,12 +257,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#ED3500",
     fontSize: 12,
     padding: 8,
-    borderRadius: 4,  
+    borderRadius: 4,
     width: 90,
-     textAlign: "center",
-     textTransform: "capitalize",
-     color: "#fff",
-     fontWeight: "600",
+    textAlign: "center",
+    textTransform: "capitalize",
+    color: "#fff",
+    fontWeight: "600",
   },
   pendingContainer: {
     position: "absolute",

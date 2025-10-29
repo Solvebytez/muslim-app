@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import HotelCard, { Hotel } from "../Hotels/HotelCard";
 
-const CuisinesScreen = ({ title }: { title?: string }) => {
+const CuisinesScreen = React.memo(({ title }: { title?: string }) => {
   const { cuisineName, cuisineId } = useLocalSearchParams();
 
   const {
@@ -136,7 +136,9 @@ const CuisinesScreen = ({ title }: { title?: string }) => {
       )}
     </SafeAreaView>
   );
-};
+});
+
+CuisinesScreen.displayName = "CuisinesScreen";
 
 const styles = StyleSheet.create({
   container: {

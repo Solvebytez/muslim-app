@@ -1,118 +1,211 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import offlineCacheManager from "@/utils/offlineCacheManager";
+import NetInfo from "@react-native-community/netinfo";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 interface PrayerTimings {
-  Fajr: string
-  Sunrise: string
-  Dhuhr: string
-  Asr: string
-  Sunset: string
-  Maghrib: string
-  Isha: string
-  Imsak: string
-  Midnight: string
-  Firstthird: string
-  Lastthird: string
+  Fajr: string;
+  Sunrise: string;
+  Dhuhr: string;
+  Asr: string;
+  Sunset: string;
+  Maghrib: string;
+  Isha: string;
+  Imsak: string;
+  Midnight: string;
+  Firstthird: string;
+  Lastthird: string;
 }
 
 interface PrayerData {
-  timings: PrayerTimings
+  timings: PrayerTimings;
   date: {
-    readable: string
+    readable: string;
     gregorian: {
-      date: string
+      date: string;
       weekday: {
-        en: string
-      }
-    }
+        en: string;
+      };
+    };
     hijri: {
-      date: string
+      date: string;
       weekday: {
-        en: string
-        ar: string
-      }
-    }
-  }
+        en: string;
+        ar: string;
+      };
+    };
+  };
   meta: {
-    latitude: number
-    longitude: number
-    timezone: string
-  }
+    latitude: number;
+    longitude: number;
+    timezone: string;
+  };
 }
 
 interface UsePrayerTimesReturn {
-  prayerData: PrayerData | null
-  isLoading: boolean
-  error: string | null
-  refetch: () => void
+  prayerData: PrayerData | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+  isOffline: boolean;
 }
 
-export const usePrayerTimes = (date: string, latitude: number, longitude: number): UsePrayerTimesReturn => {
-  const [prayerData, setPrayerData] = useState<PrayerData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+const fetchPrayerTimes = async (
+  date: string,
+  latitude: number,
+  longitude: number
+): Promise<PrayerData> => {
+  const response = await fetch(
+    `https://api.aladhan.com/v1/timings/${date}?latitude=${latitude}&longitude=${longitude}&method=2`
+  );
 
-  const lastFetchRef = useRef<string>("")
-  const abortControllerRef = useRef<AbortController | null>(null)
+  if (!response.ok) {
+    throw new Error("Failed to fetch prayer times");
+  }
 
-  const fetchPrayerTimes = useCallback(async () => {
-    if (!date || !latitude || !longitude) return
+  const result = await response.json();
 
-    const fetchKey = `${date}-${latitude}-${longitude}`
+  if (result.code === 200) {
+    const data = result.data;
 
-    // Don't fetch if we already have data for this exact combination
-    if (fetchKey === lastFetchRef.current && prayerData) return
-
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+    // Ensure hijri data exists, if not add default
+    if (!data.date.hijri) {
+      data.date.hijri = {
+        date: "1445-06-15", // Placeholder Hijri date
+        weekday: {
+          en: "Monday",
+          ar: "الاثنين",
+        },
+      };
     }
 
-    abortControllerRef.current = new AbortController()
-    setIsLoading(true)
-    setError(null)
+    return data;
+  } else {
+    throw new Error("Invalid API response");
+  }
+};
 
-    try {
-      const response = await fetch(
-        `https://api.aladhan.com/v1/timings/${date}?latitude=${latitude}&longitude=${longitude}&method=2`,
-        { signal: abortControllerRef.current.signal },
-      )
+export const usePrayerTimes = (
+  date: string,
+  latitude: number,
+  longitude: number
+): UsePrayerTimesReturn => {
+  const queryClient = useQueryClient();
+  const [isOffline, setIsOffline] = useState(false);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch prayer times")
-      }
-
-      const result = await response.json()
-
-      if (result.code === 200) {
-        setPrayerData(result.data)
-        lastFetchRef.current = fetchKey
-      } else {
-        throw new Error("Invalid API response")
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setError(err.message)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [date, latitude, longitude, prayerData])
-
-  useEffect(() => {
-    fetchPrayerTimes()
-  }, [date, latitude, longitude]) // Remove fetchPrayerTimes from dependencies
-
-  const refetch = useCallback(() => {
-    lastFetchRef.current = "" // Reset to force refetch
-    fetchPrayerTimes()
-  }, [fetchPrayerTimes])
-
-  return {
-    prayerData,
+  const {
+    data: prayerData,
     isLoading,
     error,
     refetch,
-  }
-}
+  } = useQuery({
+    queryKey: ["prayer-times", date, latitude, longitude],
+    queryFn: async () => {
+      try {
+        const result = await fetchPrayerTimes(date, latitude, longitude);
+
+        // Cache the result for offline use
+        if (result) {
+          const locationData = {
+            latitude,
+            longitude,
+            timestamp: new Date().toISOString(),
+          };
+          await offlineCacheManager.cachePrayerTimes(
+            date,
+            locationData,
+            result
+          );
+        }
+
+        return result;
+      } catch (error) {
+        // If online fetch fails, try to load from cache
+        const netInfo = await NetInfo.fetch();
+        if (!netInfo.isConnected) {
+          setIsOffline(true);
+          const cachedData = await offlineCacheManager.loadCachedPrayerTimes(
+            date,
+            latitude,
+            longitude
+          );
+          if (cachedData) {
+            return cachedData;
+          }
+        }
+        throw error;
+      }
+    },
+    enabled: !!(date && latitude && longitude),
+    staleTime: 5 * 60 * 1000, // 5 minutes - prayer times don't change often
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    refetchOnMount: true, // Changed to true to always fetch fresh data
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    retry: 1,
+    retryDelay: 1000,
+    // Override global network mode to allow offline queries
+    networkMode: "always",
+    // Enhanced error handling with offline fallback
+    onError: async (error) => {
+      const netInfo = await NetInfo.fetch();
+      setIsOffline(!netInfo.isConnected);
+
+      if (!netInfo.isConnected) {
+        // Try to load cached data and update query cache
+        const cachedData = await offlineCacheManager.loadCachedPrayerTimes(
+          date,
+          latitude,
+          longitude
+        );
+        if (cachedData) {
+          queryClient.setQueryData(
+            ["prayer-times", date, latitude, longitude],
+            cachedData
+          );
+        }
+      }
+    },
+    // Initialize with cached data if available
+    initialData: async () => {
+      try {
+        const cachedData = await offlineCacheManager.loadCachedPrayerTimes(
+          date,
+          latitude,
+          longitude
+        );
+        return cachedData;
+      } catch (error) {
+        return undefined;
+      }
+    },
+  });
+
+  // Check network status on mount
+  useEffect(() => {
+    const checkNetworkStatus = async () => {
+      const netInfo = await NetInfo.fetch();
+      setIsOffline(!netInfo.isConnected);
+    };
+
+    checkNetworkStatus();
+  }, []);
+
+  // Always return data - use default if no data available
+  const finalPrayerData =
+    prayerData || offlineCacheManager.getDefaultPrayerTimes();
+
+  // Additional safety check - ensure we always return valid data
+  const safePrayerData =
+    finalPrayerData || offlineCacheManager.getDefaultPrayerTimes();
+
+  return {
+    prayerData: safePrayerData,
+    isLoading: isLoading && !isOffline && !safePrayerData,
+    error: isOffline ? null : error?.message || null,
+    refetch,
+    isOffline,
+  };
+};

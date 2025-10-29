@@ -1,14 +1,21 @@
 import { ThemedText } from "@/components/ThemedText";
-import axiosInstance from "@/constants/AxiosInstane";
+import axiosInstance, { clearAllUserData } from "@/constants/AxiosInstane";
 import { useGetuser } from "@/hooks/useGetuser";
-import { AntDesign, Entypo, Feather, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import {
+  AntDesign,
+  Entypo,
+  Feather,
+  FontAwesome5,
+  Ionicons,
+} from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -16,168 +23,184 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 const defultProfile = require("@/assets/images/defultProfile.png");
 
-export default function ProfileScreen() {
+const ProfileScreen = React.memo(() => {
   const { user } = useGetuser();
- const [userData, setuserData] = useState<Record<string, string> | null>({});
+  const [userData, setuserData] = useState<Record<string, string> | null>({});
   const router = useRouter();
 
-const configureGoogleSignin = () => {
-  if (Platform.OS === "android") {
-    GoogleSignin.configure({
-      webClientId: "587652399701-3lhoo7eb0d5917ctn4vamusqgorl2748.apps.googleusercontent.com",
-      offlineAccess: true,
-    });
-  }
-};
-
-    const handleLogoutUser = async () => {
-  try {
-    const res = await axiosInstance.post('/logout');
-
-    if (res.status === 200) {
-      // Configure and sign out from Google Sign-in service
-      try {
-        configureGoogleSignin(); // Configure first
-       const currentUser = await GoogleSignin.getCurrentUser();
-        if (currentUser) {
-          await GoogleSignin.signOut();
-          console.log('Google Sign-in logout successful');
-        }
-      } catch (googleError) {
-        console.error('Google Sign-in logout error:', googleError);
-        // Continue with logout even if Google sign-out fails
-      }
-
-      // Remove all stored values
-      await SecureStore.deleteItemAsync('name');
-      await SecureStore.deleteItemAsync('email');
-      await SecureStore.deleteItemAsync('avatar');
-      await SecureStore.deleteItemAsync('role');
-      await SecureStore.deleteItemAsync('accessToken');
-
-      // Navigate to login screen
-      router.replace('/login');
-
-    } else {
-      Alert.alert('Logout failed', 'Please try again.');
+  const configureGoogleSignin = () => {
+    if (Platform.OS === "android") {
+      GoogleSignin.configure({
+        webClientId:
+          "587652399701-3lhoo7eb0d5917ctn4vamusqgorl2748.apps.googleusercontent.com",
+        offlineAccess: true,
+      });
     }
-  } catch (error) {
-    console.error('Logout Error:', error);
-    Alert.alert('Error', 'An error occurred while logging out.');
-  }
-};
+  };
+
+  const handleLogoutUser = async () => {
+    try {
+      const res = await axiosInstance.post("/logout");
+
+      if (res.status === 200) {
+        // Clear all user data using comprehensive logout function
+        await clearAllUserData();
+
+        // Navigate to login screen
+        router.replace("/login");
+      } else {
+        Alert.alert("Logout failed", "Please try again.");
+      }
+    } catch (error) {
+      console.error("Logout Error:", error);
+      // Even if server logout fails, clear local data
+      await clearAllUserData();
+      router.replace("/login");
+    }
+  };
+
+  const handlePrivacyPolicy = async () => {
+    const privacyUrl = "https://muslimcompass.io/pages/privacy.html";
+
+    try {
+      const canOpen = await Linking.canOpenURL(privacyUrl);
+      if (canOpen) {
+        await Linking.openURL(privacyUrl);
+      } else {
+        Alert.alert(
+          "Error",
+          "Cannot open the privacy policy link. Please check your internet connection."
+        );
+      }
+    } catch (error) {
+      console.error("Error opening privacy policy:", error);
+      Alert.alert("Error", "Failed to open privacy policy. Please try again.");
+    }
+  };
 
   useEffect(() => {
-    const fetchUserAvater = async () => {
-      const avatar = await SecureStore.getItemAsync("avatar");
-      const name = await SecureStore.getItemAsync("name");
-      const email = await SecureStore.getItemAsync("email");
-      const role = await SecureStore.getItemAsync("role");
-      setuserData({
-        name: name|| "",
-        email: email|| "",
-        role: role|| "",
-        avatar: avatar || defultProfile,
-      });
+    const fetchUserData = async () => {
+      // Use user data from hook if available, otherwise fallback to SecureStore
+      if (user && typeof user === "object" && "name" in user) {
+        const avatar = await SecureStore.getItemAsync("avatar");
+        setuserData({
+          name: user.name || "",
+          email: user.email || "",
+          role: user.role || "",
+          avatar: avatar || defultProfile,
+        });
+      } else {
+        // Fallback to SecureStore data
+        const avatar = await SecureStore.getItemAsync("avatar");
+        const name = await SecureStore.getItemAsync("name");
+        const email = await SecureStore.getItemAsync("email");
+        const role = await SecureStore.getItemAsync("role");
+        setuserData({
+          name: name || "",
+          email: email || "",
+          role: role || "",
+          avatar: avatar || defultProfile,
+        });
+      }
     };
-    fetchUserAvater();
+    fetchUserData();
   }, [user]);
 
-const baseMenuItems = [
-  {
-    section: "Options",
-    items: [],
-  },
-  {
-    section: "Account",
-    items: [
+  const baseMenuItems = [
+    {
+      section: "Options",
+      items: [],
+    },
+    {
+      section: "Account",
+      items: [
+        {
+          icon: (
+            <Entypo
+              name="help-with-circle"
+              size={20}
+              color="#666"
+              style={styles.menuIcon}
+            />
+          ),
+          title: "Help & Support",
+          onPress: () => router.push("/help"),
+        },
+        {
+          icon: (
+            <FontAwesome5
+              name="users-cog"
+              size={20}
+              color="#666"
+              style={styles.menuIcon}
+            />
+          ),
+          title: "Privacy policy",
+          onPress: handlePrivacyPolicy,
+        },
+        {
+          icon: (
+            <AntDesign
+              name="logout"
+              size={20}
+              color="#666"
+              style={styles.menuIcon}
+            />
+          ),
+          title: "Logout",
+          onPress: handleLogoutUser,
+        },
+      ],
+    },
+  ];
+
+  // Now populate the Options section based on role
+  if (userData?.role === "vendor") {
+    baseMenuItems[0].items.push(
       {
         icon: (
           <Entypo
-            name="help-with-circle"
+            name="add-to-list"
             size={20}
             color="#666"
             style={styles.menuIcon}
           />
         ),
-        title: "Help & Support",
-        onPress: () => router.push("/help"),
+        title: "Add Hotel",
+        onPress: () => router.push("/add-hotel"),
       },
       {
         icon: (
-          <FontAwesome5
-            name="users-cog"
+          <Feather
+            name="activity"
             size={20}
             color="#666"
             style={styles.menuIcon}
           />
         ),
-        title: "Privacy policy",
-        onPress: () => router.push("/privacy-policy"),
-      },
-      {
-        icon: (
-          <AntDesign
-            name="logout"
-            size={20}
-            color="#666"
-            style={styles.menuIcon}
-          />
-        ),
-        title: "Logout",
-        onPress: handleLogoutUser,
-      },
-    ],
-  },
-];
-
-// Now populate the Options section based on role
-if (userData?.role === "vendor") {
-  baseMenuItems[0].items.push(    
-    {
+        title: "Resturent Status",
+        onPress: () => router.push("/status"),
+      }
+    );
+  } else {
+    baseMenuItems[0].items.push({
       icon: (
-        <Entypo
-          name="add-to-list"
+        <AntDesign
+          name="heart"
           size={20}
           color="#666"
           style={styles.menuIcon}
         />
       ),
-      title: "Add Hotel",
-      onPress: () => router.push("/add-hotel"),
-    },
-    {
-      icon: (
-        <Feather
-          name="activity"
-          size={20}
-          color="#666"
-          style={styles.menuIcon}
-        />
-      ),
-      title: "Resturent Status",
-      onPress: () => router.push("/status"),
-    }
-  );
-} else {
-  baseMenuItems[0].items.push({
-    icon: (
-      <AntDesign
-        name="heart"
-        size={20}
-        color="#666"
-        style={styles.menuIcon}
-      />
-    ),
-    title: "Wishlist",
-    onPress: () => router.push("/wishlist"),
-  });
-}
+      title: "Wishlist",
+      onPress: () => router.push("/wishlist"),
+    });
+  }
 
   const menuItems = baseMenuItems;
 
@@ -198,8 +221,6 @@ if (userData?.role === "vendor") {
       <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
   );
-
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -265,7 +286,11 @@ if (userData?.role === "vendor") {
       </ScrollView>
     </SafeAreaView>
   );
-}
+});
+
+ProfileScreen.displayName = "ProfileScreen";
+
+export default ProfileScreen;
 
 const styles = StyleSheet.create({
   container: {
