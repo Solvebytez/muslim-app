@@ -453,9 +453,11 @@ export default function HotelFormScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#10ac84", // keep green ONLY for behind statusbar
   },
   safeArea: {
     flex: 1,
+    backgroundColor: "#fff", // make all content below statusbar white
   },
   keyboardAvoid: {
     flex: 1,
@@ -483,6 +485,7 @@ const styles = StyleSheet.create({
     width: 34,
   },
   formContainer: {
+    backgroundColor: "#fff", // ensure form itself is white if not already
     flex: 1,
     paddingHorizontal: 30,
     paddingTop: 20,

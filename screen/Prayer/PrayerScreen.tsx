@@ -345,7 +345,7 @@ export default function PrayerScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#10ac84" />
       {/* Intro Info Modal */}
       <Modal visible={showIntroInfo} transparent animationType="fade">
         <View
@@ -738,6 +738,7 @@ export default function PrayerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#10ac84",
   },
   gradient: {
     flex: 1,

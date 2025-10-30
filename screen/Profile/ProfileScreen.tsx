@@ -295,7 +295,7 @@ export default ProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#10ac84",
   },
   header: {
     backgroundColor: "#000",  // reverted from #10ac84
