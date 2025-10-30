@@ -227,7 +227,7 @@ const ProfileScreen = React.memo(() => {
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {/* Header Section */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: '#000' }]}>
         {/* Abstract shapes */}
         <View style={styles.orangeCircle} />
         <View style={styles.yellowCircle} />
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   header: {
-    backgroundColor: "#000",
+    backgroundColor: "#000",  // reverted from #10ac84
     paddingHorizontal: 20,
     paddingVertical: 40,
     position: "relative",

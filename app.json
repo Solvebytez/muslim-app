@@ -18,9 +18,7 @@
           "audio",
           "background-processing",
           "background-fetch",
-          "audio",
-          "background-processing",
-          "background-fetch"
+          "remote-notification"
         ],
         "NSUserNotificationsUsageDescription": "We need notification permission to remind you of prayer times with azan.",
         "ITSAppUsesNonExemptEncryption": false
@@ -84,7 +82,8 @@
           "androidCollapsedTitle": "Prayer Time",
           "iosDisplayInForeground": true,
           "requestPermissionsImmediately": false,
-          "enableBackgroundRefresh": true
+          "enableBackgroundRefresh": true,
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       "expo-image-picker",
