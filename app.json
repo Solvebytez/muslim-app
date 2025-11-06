@@ -16,11 +16,16 @@
         "NSLocationAlwaysUsageDescription": "Your location helps us provide accurate guidance features at all times.",
         "UIBackgroundModes": [
           "audio",
-          "background-processing",
-          "background-fetch",
+          "processing",
+          "fetch",
           "remote-notification"
         ],
+        "BGTaskSchedulerPermittedIdentifiers": [
+          "com.sahin05.muslimguide.background-notification-task"
+        ],
         "NSUserNotificationsUsageDescription": "We need notification permission to remind you of prayer times with azan.",
+        "NSCameraUsageDescription": "We need camera access to take photos of hotels and restaurants.",
+        "NSPhotoLibraryUsageDescription": "We need photo library access to select images for hotels and restaurants.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },

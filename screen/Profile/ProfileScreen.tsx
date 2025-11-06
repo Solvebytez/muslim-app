@@ -88,11 +88,22 @@ const ProfileScreen = React.memo(() => {
       // Use user data from hook if available, otherwise fallback to SecureStore
       if (user && typeof user === "object" && "name" in user) {
         const avatar = await SecureStore.getItemAsync("avatar");
+        
+        // Validate avatar: must be a non-empty string that looks like a URL
+        let validAvatar: string | null = null;
+        if (avatar) {
+          // Convert to string if it's a number (from backend ObjectId)
+          const avatarStr = typeof avatar === 'string' ? avatar : String(avatar || '');
+          // Only use if it's a valid URL string
+          if (avatarStr && avatarStr.trim() && (avatarStr.startsWith('http://') || avatarStr.startsWith('https://'))) {
+            validAvatar = avatarStr;
+          }
+        }
         setuserData({
           name: user.name || "",
           email: user.email || "",
           role: user.role || "",
-          avatar: avatar || defultProfile,
+          avatar: validAvatar || "",
         });
       } else {
         // Fallback to SecureStore data
@@ -100,11 +111,22 @@ const ProfileScreen = React.memo(() => {
         const name = await SecureStore.getItemAsync("name");
         const email = await SecureStore.getItemAsync("email");
         const role = await SecureStore.getItemAsync("role");
+        
+        // Validate avatar: must be a non-empty string that looks like a URL
+        let validAvatar: string | null = null;
+        if (avatar) {
+          // Convert to string if it's a number (from backend ObjectId)
+          const avatarStr = typeof avatar === 'string' ? avatar : String(avatar || '');
+          // Only use if it's a valid URL string
+          if (avatarStr && avatarStr.trim() && (avatarStr.startsWith('http://') || avatarStr.startsWith('https://'))) {
+            validAvatar = avatarStr;
+          }
+        }
         setuserData({
           name: name || "",
           email: email || "",
           role: role || "",
-          avatar: avatar || defultProfile,
+          avatar: validAvatar || "",
         });
       }
     };
@@ -242,7 +264,12 @@ const ProfileScreen = React.memo(() => {
         <View style={styles.profileSection}>
           <Image
             source={
-              userData?.avatar ? { uri: userData.avatar } : defultProfile // local fallback image
+              userData?.avatar && 
+              typeof userData.avatar === 'string' && 
+              userData.avatar.trim() !== '' &&
+              (userData.avatar.startsWith('http://') || userData.avatar.startsWith('https://'))
+                ? { uri: userData.avatar } 
+                : defultProfile
             }
             style={styles.profileImage}
           />
