@@ -28,13 +28,13 @@ import {
   statusCodes,
 } from "@react-native-google-signin/google-signin";
 import { useRouter } from "expo-router";
-
 import axiosInstance from "@/constants/AxiosInstane";
 import useDateTimeLocation from "@/hooks/prayerHooks/useCurrentuserlocateion";
 import NetInfo from "@react-native-community/netinfo";
 import { AxiosError } from "axios";
 import Constants from "expo-constants";
 import { setItemAsync } from "expo-secure-store";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 const loginImage = require("@/assets/images/icons/login-icon.png");
 const googleIcon = require("@/assets/images/icons/search.png");
@@ -43,7 +43,8 @@ const secret = Constants.expoConfig?.extra?.APP_API_TOKEN;
 
 export default function LoginScreen() {
   const [modalVisible, setModalVisible] = useState(false);
-  const [emailPasswordModalVisible, setEmailPasswordModalVisible] = useState(false);
+  const [emailPasswordModalVisible, setEmailPasswordModalVisible] =
+    useState(false);
   const [selectedUserType, setSelectedUserType] = useState("user");
   const [isOnline, setIsOnline] = useState(true);
   const [email, setEmail] = useState("");
@@ -174,6 +175,107 @@ export default function LoginScreen() {
     setModalVisible(true);
   };
 
+  const handleAppleSignin = async () => {
+    if (!AppleAuthentication) {
+      Alert.alert(
+        "Not Available",
+        "Apple Sign-In is not available on this device."
+      );
+      return;
+    }
+
+    // Check if offline before attempting sign-in
+    if (!isOnline) {
+      Alert.alert(
+        "No Internet Connection",
+        "You need an internet connection to sign in with Apple. Please check your connection and try again.",
+        [
+          {
+            text: "Continue Offline",
+            onPress: () => router.replace("/offline-welcome"),
+          },
+        ]
+      );
+      return;
+    }
+
+    // Check if Apple Authentication is available (iOS 13+)
+    try {
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert(
+          "Not Available",
+          "Sign in with Apple is not available on this device."
+        );
+        return;
+      }
+
+      // Show modal to select user type first
+      setModalVisible(true);
+    } catch (error) {
+      console.error("Apple Sign-In availability check failed:", error);
+      Alert.alert("Error", "Unable to check Apple Sign-In availability.");
+    }
+  };
+
+  const performAppleSignIn = async () => {
+    if (!AppleAuthentication) {
+      Alert.alert(
+        "Not Available",
+        "Apple Sign-In is not available on this device."
+      );
+      return;
+    }
+
+    // Close modal first
+    setModalVisible(false);
+
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      console.log("Apple Sign-In credential:", credential);
+
+      // Extract user information
+      // Note: name and email may be null on subsequent sign-ins
+      const fullName = credential.fullName
+        ? `${credential.fullName.givenName || ""} ${
+            credential.fullName.familyName || ""
+          }`.trim()
+        : "";
+
+      // For Apple, email might be hidden - use user identifier if email is null
+      // Apple provides a unique user ID that we can use
+      const userEmail =
+        credential.email || `${credential.user}@privaterelay.appleid.com`;
+
+      // Call authHandle with Apple provider
+      await authHandle({
+        name: fullName || "Apple User",
+        email: userEmail,
+        avatar: "", // Apple doesn't provide profile photo
+        role: selectedUserType,
+        provider: "apple",
+      });
+    } catch (error: any) {
+      console.log("Apple Sign-In error:", error);
+
+      if (error.code === "ERR_REQUEST_CANCELED") {
+        // User canceled the sign-in
+        console.log("User canceled Apple Sign-In");
+      } else {
+        Alert.alert(
+          "Sign-In Failed",
+          "Unable to sign in with Apple. Please try again."
+        );
+      }
+    }
+  };
+
   const handleEmailPasswordLogin = async () => {
     // Check if offline
     if (!isOnline) {
@@ -216,7 +318,11 @@ export default function LoginScreen() {
         password: password,
       });
 
-      console.log("✅ Email Login Response:", response?.status, response?.data.data);
+      console.log(
+        "✅ Email Login Response:",
+        response?.status,
+        response?.data.data
+      );
 
       if (response?.status === 200) {
         const accessToken = response?.data.data.accessToken;
@@ -230,9 +336,12 @@ export default function LoginScreen() {
             await setItemAsync("refreshToken", refreshToken);
           }
           await setItemAsync("name", userData.name || "");
-          await setItemAsync("email", userData.email || email.trim().toLowerCase());
+          await setItemAsync(
+            "email",
+            userData.email || email.trim().toLowerCase()
+          );
           await setItemAsync("role", userData.role || "user");
-          
+
           // Close modal and reset form
           setEmailPasswordModalVisible(false);
           setEmail("");
@@ -263,7 +372,11 @@ export default function LoginScreen() {
             error.response.data?.message ||
             error.response.data?.error ||
             "Invalid email or password";
-          console.log("🔴 Response error:", error.response.status, error.response.data);
+          console.log(
+            "🔴 Response error:",
+            error.response.status,
+            error.response.data
+          );
         } else if (error.request) {
           errorMessage = "Network error. Please check your connection.";
           console.log("🟡 No response from server");
@@ -283,18 +396,21 @@ export default function LoginScreen() {
     email,
     avatar,
     role,
+    provider = "google",
   }: {
     name: string;
     email: string;
     role: string;
     avatar: string;
+    provider?: "google" | "apple";
   }) => {
     try {
       const user = { name, email, avatar, role };
       console.log("🔍 JWT Token - User data being encoded:", user);
       const token = JWT.encode(user, secret);
       await setItemAsync("avatar", avatar); // Fixed to use SecureStore
-      const response = await axiosInstance.post("/google-login", {
+      const endpoint = provider === "apple" ? "/apple-login" : "/google-login";
+      const response = await axiosInstance.post(endpoint, {
         signInToken: token, // Fixed typo here (was signInTokn)
         location: {
           latitude: location?.latitude,
@@ -406,7 +522,10 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.signInButton, { flexDirection: "row", gap: 10, marginBottom: 15 }]}
+              style={[
+                styles.signInButton,
+                { flexDirection: "row", gap: 10, marginBottom: 15 },
+              ]}
               onPress={() => setEmailPasswordModalVisible(true)}
             >
               <Ionicons name="mail-outline" size={20} color="#093637" />
@@ -421,7 +540,14 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.signInButton, { flexDirection: "row", gap: 10 }]}
+              style={[
+                styles.signInButton,
+                {
+                  flexDirection: "row",
+                  gap: 10,
+                  marginBottom: Platform.OS === "ios" ? 15 : 0,
+                },
+              ]}
               onPress={signInoptons}
             >
               <Image source={googleIcon} style={{ width: 20, height: 20 }} />
@@ -434,6 +560,31 @@ export default function LoginScreen() {
                 Continue With Google
               </ThemedText>
             </TouchableOpacity>
+
+            {/* Apple Sign-In Button (iOS only) */}
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={[
+                  styles.signInButton,
+                  {
+                    flexDirection: "row",
+                    gap: 10,
+                    backgroundColor: "#000",
+                  },
+                ]}
+                onPress={handleAppleSignin}
+              >
+                <Ionicons name="logo-apple" size={20} color="#fff" />
+                <ThemedText
+                  style={[
+                    styles.signInButtonText,
+                    { fontFamily: "ZillaSlabBold", color: "#fff" },
+                  ]}
+                >
+                  Continue With Apple
+                </ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -480,7 +631,10 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </TouchableOpacity>
 
-              <View style={styles.modalBody} onStartShouldSetResponder={() => true}>
+              <View
+                style={styles.modalBody}
+                onStartShouldSetResponder={() => true}
+              >
                 <View style={styles.modalInputContainer}>
                   <Ionicons
                     name="mail-outline"
@@ -589,13 +743,40 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={styles.continueButton}
-              onPress={handleGoogleSignin}
+              onPress={() => {
+                // Close modal first
+                setModalVisible(false);
+                // Then trigger the appropriate sign-in
+                if (Platform.OS === "ios") {
+                  // For iOS, we can show Apple Sign-In directly or Google
+                  // For now, let's keep Google flow as is and add Apple button separately
+                  handleGoogleSignin();
+                } else {
+                  handleGoogleSignin();
+                }
+              }}
             >
               <Text style={styles.continueButtonText}>
-                Continue as{" "}
+                Continue with Google as{" "}
                 {selectedUserType === "user" ? "User" : "Restaurant Owner"}
               </Text>
             </TouchableOpacity>
+
+            {/* Apple Sign-In button (iOS only) */}
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={[
+                  styles.continueButton,
+                  { backgroundColor: "#000", marginTop: 10 },
+                ]}
+                onPress={performAppleSignIn}
+              >
+                <Text style={styles.continueButtonText}>
+                  Continue with Apple as{" "}
+                  {selectedUserType === "user" ? "User" : "Restaurant Owner"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
@@ -824,5 +1005,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     marginLeft: 4,
+  },
+  appleButton: {
+    width: "100%",
+    height: 50,
+    marginTop: 10,
   },
 });
