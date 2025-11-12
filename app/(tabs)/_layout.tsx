@@ -11,24 +11,15 @@ import { ActivityIndicator, View } from "react-native";
 export default function TabLayout() {
   const { user, isLoding, isOffline } = useGetuser();
 
-  // Show loading spinner until we have user data from server
-  if (isLoding || !user) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#10ac84",
-        }}
-      >
-        <ActivityIndicator size="large" color="white" />
-      </View>
-    );
+  // Allow guest access - don't block if user is not loaded
+  // Guest users can access prayer times and hijri calendar
+  const currentUser = user || null;
+  
+  // Only show loading if we're online and actively fetching (not for guests)
+  if (isLoding && !isOffline && !currentUser) {
+    // For guests, allow access but show minimal loading
+    // They can still access prayer tab
   }
-
-  // Only proceed when we have actual user data from server
-  const currentUser = user;
 
   // Debug logs removed for production
 
@@ -44,7 +35,7 @@ export default function TabLayout() {
         },
       }}
     >
-      {/* Map tab - hidden for vendors */}
+      {/* Map tab - requires login, hidden for vendors and guests */}
       <Tabs.Screen
         name="index"
         options={{
@@ -52,11 +43,11 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Entypo name="map" size={24} color={color} />
           ),
-          href: currentUser?.role === "vendor" ? null : "/",
+          href: currentUser && currentUser.role !== "vendor" ? "/" : null,
         }}
       />
 
-      {/* Cuisines tab - hidden for vendors */}
+      {/* Cuisines tab - requires login, hidden for vendors and guests */}
       <Tabs.Screen
         name="cuisines"
         options={{
@@ -64,7 +55,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Entypo name="ticket" size={24} color={color} />
           ),
-          href: currentUser?.role === "vendor" ? null : "/cuisines",
+          href: currentUser && currentUser.role !== "vendor" ? "/cuisines" : null,
         }}
       />
 
@@ -92,7 +83,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Prayer tab - visible for all users */}
+      {/* Prayer tab - visible for all users (including guests) */}
       <Tabs.Screen
         name="prayer"
         options={{
@@ -114,7 +105,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Profile tab - visible for all users */}
+      {/* Profile tab - requires login (guests redirected to login) */}
       <Tabs.Screen
         name="profile"
         options={{

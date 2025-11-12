@@ -33,6 +33,17 @@ const ProfileScreen = React.memo(() => {
   const [userData, setuserData] = useState<Record<string, string> | null>({});
   const router = useRouter();
 
+  // Redirect to login if not authenticated
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      const token = await SecureStore.getItemAsync("accessToken");
+      if (!token) {
+        router.replace("/login");
+      }
+    };
+    checkAuth();
+  }, [router]);
+
   const configureGoogleSignin = () => {
     if (Platform.OS === "android") {
       GoogleSignin.configure({
@@ -62,6 +73,76 @@ const ProfileScreen = React.memo(() => {
       await clearAllUserData();
       router.replace("/login");
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone. All your data, including restaurants (if you're a vendor), will be permanently deleted.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            // Second confirmation
+            Alert.alert(
+              "Final Confirmation",
+              "This will permanently delete your account and all associated data. Are you absolutely sure?",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Yes, Delete My Account",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      const res = await axiosInstance.delete("/delete-account");
+
+                      if (res.status === 200) {
+                        // Clear all user data
+                        await clearAllUserData();
+
+                        Alert.alert(
+                          "Account Deleted",
+                          "Your account has been successfully deleted.",
+                          [
+                            {
+                              text: "OK",
+                              onPress: () => router.replace("/login"),
+                            },
+                          ]
+                        );
+                      } else {
+                        Alert.alert(
+                          "Deletion Failed",
+                          "Unable to delete account. Please try again."
+                        );
+                      }
+                    } catch (error: any) {
+                      console.error("Delete Account Error:", error);
+                      let errorMessage =
+                        "Unable to delete account. Please try again.";
+
+                      if (error?.response?.data?.message) {
+                        errorMessage = error.response.data.message;
+                      }
+
+                      Alert.alert("Deletion Failed", errorMessage);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
   };
 
   const handlePrivacyPolicy = async () => {
@@ -177,6 +258,19 @@ const ProfileScreen = React.memo(() => {
           title: "Logout",
           onPress: handleLogoutUser,
         },
+        {
+          icon: (
+            <Ionicons
+              name="trash-outline"
+              size={20}
+              color="#FF3B30"
+              style={styles.menuIcon}
+            />
+          ),
+          title: "Delete Account",
+          onPress: handleDeleteAccount,
+          isDestructive: true,
+        },
       ],
     },
   ];
@@ -230,15 +324,27 @@ const ProfileScreen = React.memo(() => {
     icon,
     title,
     onPress,
+    isDestructive,
   }: {
     icon: any;
     title: string;
     onPress: () => void;
+    isDestructive?: boolean;
   }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+    <TouchableOpacity
+      style={[
+        styles.menuItem,
+        isDestructive && { borderLeftColor: "#FF3B30" },
+      ]}
+      onPress={onPress}
+    >
       <View style={styles.menuItemLeft}>
         <Text style={styles.menuIcon}>{icon}</Text>
-        <Text style={styles.menuText}>{title}</Text>
+        <Text
+          style={[styles.menuText, isDestructive && { color: "#FF3B30" }]}
+        >
+          {title}
+        </Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
@@ -304,6 +410,7 @@ const ProfileScreen = React.memo(() => {
                     icon={item.icon}
                     title={item.title}
                     onPress={item.onPress}
+                    isDestructive={item.isDestructive}
                   />
                 );
               })}
