@@ -54,8 +54,10 @@ export default function useIndex() {
     return <Redirect href="/offline-welcome" />;
   }
 
-  // Redirect logic for online users or logged-in users
-  let redirectPath: "/login" | "/(tabs)/add-hotel" | "/(tabs)" = "/login";
+  // Allow guest access to prayer times and hijri calendar (non-account features)
+  // Redirect to prayer tab for guests, or main app for logged-in users
+  let redirectPath: "/login" | "/(tabs)/add-hotel" | "/(tabs)" | "/(tabs)/prayer" = "/(tabs)/prayer";
+  
   if (loggedInUser) {
     redirectPath = userRole === "vendor" ? "/(tabs)/add-hotel" : "/(tabs)";
   }
