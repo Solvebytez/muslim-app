@@ -12,8 +12,10 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 
 import RadioButton from "@/components/form/RadioButton";
@@ -41,8 +43,13 @@ const secret = Constants.expoConfig?.extra?.APP_API_TOKEN;
 
 export default function LoginScreen() {
   const [modalVisible, setModalVisible] = useState(false);
+  const [emailPasswordModalVisible, setEmailPasswordModalVisible] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState("user");
   const [isOnline, setIsOnline] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { location } = useDateTimeLocation();
 
   const router = useRouter();
@@ -165,6 +172,110 @@ export default function LoginScreen() {
       console.log("Google Sign-in logout successful");
     }
     setModalVisible(true);
+  };
+
+  const handleEmailPasswordLogin = async () => {
+    // Check if offline
+    if (!isOnline) {
+      Alert.alert(
+        "No Internet Connection",
+        "You need an internet connection to sign in. Please check your connection and try again.",
+        [
+          {
+            text: "Continue Offline",
+            onPress: () => router.replace("/offline-welcome"),
+          },
+        ]
+      );
+      return;
+    }
+
+    // Basic validation
+    if (!email.trim()) {
+      Alert.alert("Error", "Please enter your email");
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert("Error", "Please enter your password");
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await axiosInstance.post("/email-login", {
+        email: email.trim().toLowerCase(),
+        password: password,
+      });
+
+      console.log("✅ Email Login Response:", response?.status, response?.data.data);
+
+      if (response?.status === 200) {
+        const accessToken = response?.data.data.accessToken;
+        const refreshToken = response?.data.data.refreshToken;
+        const userData = response?.data.data.user;
+
+        if (accessToken && userData) {
+          console.log("🔐 Storing user data...");
+          await setItemAsync("accessToken", accessToken);
+          if (refreshToken) {
+            await setItemAsync("refreshToken", refreshToken);
+          }
+          await setItemAsync("name", userData.name || "");
+          await setItemAsync("email", userData.email || email.trim().toLowerCase());
+          await setItemAsync("role", userData.role || "user");
+          
+          // Close modal and reset form
+          setEmailPasswordModalVisible(false);
+          setEmail("");
+          setPassword("");
+
+          // Redirect based on role
+          if (userData.role === "user") {
+            router.replace("/(tabs)");
+          } else if (userData.role === "vendor") {
+            router.replace("/(tabs)/add-hotel");
+          } else {
+            router.replace("/(tabs)");
+          }
+        } else {
+          throw new Error("Access token or user data missing in response");
+        }
+      } else {
+        throw new Error(`Unexpected status code: ${response.status}`);
+      }
+    } catch (error: unknown) {
+      console.log("❌ Email Login Error");
+
+      let errorMessage = "Login failed. Please try again.";
+
+      if (error instanceof AxiosError) {
+        if (error.response) {
+          errorMessage =
+            error.response.data?.message ||
+            error.response.data?.error ||
+            "Invalid email or password";
+          console.log("🔴 Response error:", error.response.status, error.response.data);
+        } else if (error.request) {
+          errorMessage = "Network error. Please check your connection.";
+          console.log("🟡 No response from server");
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert("Login Failed", errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const authHandle = async ({
@@ -295,9 +406,25 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
+              style={[styles.signInButton, { flexDirection: "row", gap: 10, marginBottom: 15 }]}
+              onPress={() => setEmailPasswordModalVisible(true)}
+            >
+              <Ionicons name="mail-outline" size={20} color="#093637" />
+              <ThemedText
+                style={[
+                  styles.signInButtonText,
+                  { fontFamily: "ZillaSlabBold" },
+                ]}
+              >
+                Login with email & Password
+              </ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.signInButton, { flexDirection: "row", gap: 10 }]}
               onPress={signInoptons}
             >
+              <Image source={googleIcon} style={{ width: 20, height: 20 }} />
               <ThemedText
                 style={[
                   styles.signInButtonText,
@@ -306,11 +433,123 @@ export default function LoginScreen() {
               >
                 Continue With Google
               </ThemedText>
-              <Image source={googleIcon} style={{ width: 20, height: 20 }} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Modal for Email/Password Login */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={emailPasswordModalVisible}
+        onRequestClose={() => {
+          setEmailPasswordModalVisible(false);
+          setEmail("");
+          setPassword("");
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => {
+              setEmailPasswordModalVisible(false);
+              setEmail("");
+              setPassword("");
+            }}
+          >
+            <View style={styles.modalContent}>
+              <TouchableOpacity
+                style={styles.modalHeader}
+                onPress={(e) => e.stopPropagation()}
+              >
+                <Text style={styles.modalTitle}>Login</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setEmailPasswordModalVisible(false);
+                    setEmail("");
+                    setPassword("");
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+
+              <View style={styles.modalBody} onStartShouldSetResponder={() => true}>
+                <View style={styles.modalInputContainer}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.modalInputIcon}
+                  />
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Email"
+                    placeholderTextColor="#999"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                  />
+                </View>
+
+                <View style={styles.modalInputContainer}>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.modalInputIcon}
+                  />
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Password"
+                    placeholderTextColor="#999"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                  />
+                  <TouchableOpacity
+                    style={styles.modalEyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-outline" : "eye-off-outline"}
+                      size={20}
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.continueButton,
+                    { opacity: isLoading ? 0.7 : 1, marginTop: 20 },
+                  ]}
+                  onPress={handleEmailPasswordLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.continueButtonText}>Login</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Modal for User Type Selection */}
       <Modal
@@ -541,6 +780,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     marginBottom: 30,
+  },
+  modalBody: {
+    flex: 1,
+    paddingTop: 10,
+  },
+  modalInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    height: 50,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+    backgroundColor: "#f9f9f9",
+  },
+  modalInputIcon: {
+    marginRight: 10,
+  },
+  modalInput: {
+    flex: 1,
+    color: "#333",
+    fontSize: 16,
+  },
+  modalEyeIcon: {
+    padding: 5,
   },
   // Offline indicator styles
   offlineIndicator: {
