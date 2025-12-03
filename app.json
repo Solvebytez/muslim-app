@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sahin05.muslimguide",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show prayer times and nearby mosques.",
         "NSLocationAlwaysUsageDescription": "Your location helps us provide accurate guidance features at all times.",
