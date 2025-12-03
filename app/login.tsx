@@ -267,6 +267,13 @@ export default function LoginScreen() {
       const userEmail =
         credential.email || `${credential.user}@privaterelay.appleid.com`;
 
+      console.log("🍎 Apple Sign-In - Calling authHandle with:", {
+        name: fullName || "Apple User",
+        email: userEmail,
+        role: selectedUserType,
+        provider: "apple",
+      });
+
       // Call authHandle with Apple provider
       await authHandle({
         name: fullName || "Apple User",
@@ -276,16 +283,46 @@ export default function LoginScreen() {
         provider: "apple",
       });
     } catch (error: any) {
-      console.log("Apple Sign-In error:", error);
+      console.error("❌ Apple Sign-In error (full details):", error);
+      console.error("Error code:", error?.code);
+      console.error("Error message:", error?.message);
+      console.error("Error stack:", error?.stack);
       setIsSocialLoading(false);
 
       if (error.code === "ERR_REQUEST_CANCELED") {
         // User canceled the sign-in
         console.log("User canceled Apple Sign-In");
-      } else {
+        return; // Don't show error for user cancellation
+      }
+
+      // Check if it's an API error from authHandle
+      if (error instanceof AxiosError) {
+        let errorMessage = "Unable to sign in with Apple. Please try again.";
+        
+        if (error.response) {
+          // Server responded with error
+          const serverError = error.response.data?.message || error.response.data?.error;
+          errorMessage = serverError || `Server error: ${error.response.status}`;
+          console.error("Server error response:", error.response.data);
+        } else if (error.request) {
+          // Network error
+          errorMessage = "Network error. Please check your internet connection.";
+          console.error("Network error - no response from server");
+        }
+
+        Alert.alert("Sign-In Failed", errorMessage);
+      } else if (error?.code === "ERR_INVALID_CREDENTIAL" || error?.code === "ERR_NOT_AVAILABLE") {
         Alert.alert(
           "Sign-In Failed",
-          "Unable to sign in with Apple. Please try again."
+          "Apple Sign-In is not available or credentials are invalid. Please try again."
+        );
+      } else {
+        // Generic error
+        const errorMsg = error?.message || "Unknown error occurred";
+        console.error("Generic Apple Sign-In error:", errorMsg);
+        Alert.alert(
+          "Sign-In Failed",
+          `Unable to sign in with Apple: ${errorMsg}. Please try again.`
         );
       }
     }
