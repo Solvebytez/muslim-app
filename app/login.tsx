@@ -244,7 +244,31 @@ export default function LoginScreen() {
     setModalVisible(false);
     setIsSocialLoading(true);
 
+    // Safety timeout to reset loading state if Apple Sign-In hangs
+    const safetyTimeout = setTimeout(() => {
+      console.warn("⚠️ Apple Sign-In taking too long, resetting state...");
+      setIsSocialLoading(false);
+    }, 120000); // 2 minutes safety timeout
+
     try {
+      console.log("🍎 Starting Apple Sign-In process...");
+      
+      // Check if Apple Sign-In is available before attempting
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      if (!isAvailable) {
+        clearTimeout(safetyTimeout);
+        setIsSocialLoading(false);
+        Alert.alert(
+          "Not Available",
+          "Sign in with Apple is not available on this device."
+        );
+        return;
+      }
+      
+      console.log("🍎 Apple Sign-In is available, showing modal...");
+      
+      // Call signInAsync - this will show the Apple Sign-In UI
+      // The promise resolves when user completes or cancels
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -252,7 +276,13 @@ export default function LoginScreen() {
         ],
       });
 
-      console.log("Apple Sign-In credential:", credential);
+      clearTimeout(safetyTimeout);
+      console.log("✅ Apple Sign-In credential received:", credential);
+      
+      if (!credential || !credential.user) {
+        setIsSocialLoading(false);
+        throw new Error("Invalid credential received from Apple Sign-In");
+      }
 
       // Extract user information
       // Note: name and email may be null on subsequent sign-ins
@@ -282,16 +312,20 @@ export default function LoginScreen() {
         role: selectedUserType,
         provider: "apple",
       });
+      
+      console.log("✅ Apple Sign-In completed successfully");
+      // Note: setIsSocialLoading(false) is not needed here because authHandle
+      // will navigate to the next screen on success
     } catch (error: any) {
       console.error("❌ Apple Sign-In error (full details):", error);
       console.error("Error code:", error?.code);
       console.error("Error message:", error?.message);
       console.error("Error stack:", error?.stack);
-      setIsSocialLoading(false);
 
       if (error.code === "ERR_REQUEST_CANCELED") {
         // User canceled the sign-in
         console.log("User canceled Apple Sign-In");
+        setIsSocialLoading(false);
         return; // Don't show error for user cancellation
       }
 
@@ -325,6 +359,10 @@ export default function LoginScreen() {
           `Unable to sign in with Apple: ${errorMsg}. Please try again.`
         );
       }
+    } finally {
+      // Always reset loading state and clear timeout
+      clearTimeout(safetyTimeout);
+      setIsSocialLoading(false);
     }
   };
 
@@ -457,6 +495,7 @@ export default function LoginScreen() {
     provider?: "google" | "apple";
   }) => {
     try {
+      console.log(`🔐 Starting ${provider} authentication...`);
       const user = { name, email, avatar, role };
       console.log("🔍 JWT Token - User data being encoded:", user);
       
@@ -466,14 +505,22 @@ export default function LoginScreen() {
         throw new Error("App configuration error. Please contact support.");
       }
       
+      console.log("🔐 Encoding JWT token...");
       const token = JWT.encode(user, secret);
+      console.log("✅ JWT token encoded successfully");
+      
       await setItemAsync("avatar", avatar); // Fixed to use SecureStore
       const endpoint = provider === "apple" ? "/apple-login" : "/google-login";
+      console.log(`🌐 Calling API endpoint: ${endpoint}`);
       
       // Add timeout to prevent infinite loading
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => {
+        console.error("⏱️ Request timeout after 30 seconds");
+        controller.abort();
+      }, 30000); // 30 second timeout
       
+      console.log("📡 Sending request to server...");
       const response = await axiosInstance.post(endpoint, {
         signInToken: token,
         location: {
@@ -489,6 +536,7 @@ export default function LoginScreen() {
       });
       
       clearTimeout(timeoutId);
+      console.log("✅ Server response received:", response?.status);
 
       console.log(
         "✅ Server responded:",
@@ -666,12 +714,25 @@ export default function LoginScreen() {
               </TouchableOpacity>
             )}
             
-            {/* Loading overlay for social login */}
+            {/* Loading overlay for social login - Full screen */}
             {isSocialLoading && (
-              <View style={styles.socialLoadingContainer}>
-                <ActivityIndicator size="small" color="#093637" />
-                <Text style={styles.socialLoadingText}>Signing in...</Text>
-              </View>
+              <Modal
+                transparent={true}
+                visible={isSocialLoading}
+                animationType="fade"
+              >
+                <View style={styles.fullScreenLoadingContainer}>
+                  <View style={styles.fullScreenLoadingContent}>
+                    <ActivityIndicator size="large" color="#10ac84" />
+                    <Text style={styles.fullScreenLoadingText}>
+                      Signing in with Apple...
+                    </Text>
+                    <Text style={styles.fullScreenLoadingSubtext}>
+                      Please wait
+                    </Text>
+                  </View>
+                </View>
+              </Modal>
             )}
           </View>
         </KeyboardAvoidingView>
@@ -1102,6 +1163,32 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 50,
     marginTop: 10,
+  },
+  fullScreenLoadingContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullScreenLoadingContent: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 40,
+    alignItems: "center",
+    minWidth: 250,
+  },
+  fullScreenLoadingText: {
+    marginTop: 20,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+  },
+  fullScreenLoadingSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
   },
   socialLoadingContainer: {
     flexDirection: "row",

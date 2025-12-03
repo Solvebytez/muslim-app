@@ -7,31 +7,31 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0EF59E19F086D2352880D1A1 /* libPods-MuslimCompass.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F3158F3772AEDD5839C8FB9A /* libPods-MuslimCompass.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		69641DC60447C20C0876E812 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E44D68AD4E11A558798129 /* ExpoModulesProvider.swift */; };
+		70592136D21D369FE425F3CC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F22023AE17537317A43C2087 /* PrivacyInfo.xcprivacy */; };
+		9A17000BA097435BBB445E29 /* azan.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3FB1BED7761845DDA5210533 /* azan.mp3 */; };
+		B7179D27BED9BBC786DEB682 /* libPods-MuslimCompass.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FE13E8E0B8086ABEB0C9375C /* libPods-MuslimCompass.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		C41AFA425675545B04CEC3CA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8300184FCC36E25F754266BB /* PrivacyInfo.xcprivacy */; };
-		EB55FB38772A03602236DE98 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A6B16142E963EFD42C6424 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		F7F912AC0A3E40E8BBE9ED3E /* azan.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5747A3176E2742AC89F69CD0 /* azan.mp3 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		07A6B16142E963EFD42C6424 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MuslimCompass/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* MuslimCompass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MuslimCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MuslimCompass/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = MuslimCompass/Info.plist; sourceTree = "<group>"; };
-		5747A3176E2742AC89F69CD0 /* azan.mp3 */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = azan.mp3; path = MuslimCompass/azan.mp3; sourceTree = "<group>"; };
-		606D6F20DCA7B8A554B09072 /* Pods-MuslimCompass.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MuslimCompass.debug.xcconfig"; path = "Target Support Files/Pods-MuslimCompass/Pods-MuslimCompass.debug.xcconfig"; sourceTree = "<group>"; };
-		8300184FCC36E25F754266BB /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = MuslimCompass/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		9F91211CF938B66642D46E8E /* Pods-MuslimCompass.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MuslimCompass.release.xcconfig"; path = "Target Support Files/Pods-MuslimCompass/Pods-MuslimCompass.release.xcconfig"; sourceTree = "<group>"; };
+		19EE4C69D9F1F2540CBF899A /* Pods-MuslimCompass.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MuslimCompass.debug.xcconfig"; path = "Target Support Files/Pods-MuslimCompass/Pods-MuslimCompass.debug.xcconfig"; sourceTree = "<group>"; };
+		3FB1BED7761845DDA5210533 /* azan.mp3 */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = azan.mp3; path = MuslimCompass/azan.mp3; sourceTree = "<group>"; };
+		98E44D68AD4E11A558798129 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MuslimCompass/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MuslimCompass/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		CE14030ED3EC7A77EB9B9A89 /* Pods-MuslimCompass.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MuslimCompass.release.xcconfig"; path = "Target Support Files/Pods-MuslimCompass/Pods-MuslimCompass.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MuslimCompass/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* MuslimCompass-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MuslimCompass-Bridging-Header.h"; path = "MuslimCompass/MuslimCompass-Bridging-Header.h"; sourceTree = "<group>"; };
-		F3158F3772AEDD5839C8FB9A /* libPods-MuslimCompass.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MuslimCompass.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F22023AE17537317A43C2087 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = MuslimCompass/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		FE13E8E0B8086ABEB0C9375C /* libPods-MuslimCompass.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MuslimCompass.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,7 +39,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0EF59E19F086D2352880D1A1 /* libPods-MuslimCompass.a in Frameworks */,
+				B7179D27BED9BBC786DEB682 /* libPods-MuslimCompass.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,8 +55,8 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				5747A3176E2742AC89F69CD0 /* azan.mp3 */,
-				8300184FCC36E25F754266BB /* PrivacyInfo.xcprivacy */,
+				3FB1BED7761845DDA5210533 /* azan.mp3 */,
+				F22023AE17537317A43C2087 /* PrivacyInfo.xcprivacy */,
 			);
 			name = MuslimCompass;
 			sourceTree = "<group>";
@@ -65,17 +65,19 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				F3158F3772AEDD5839C8FB9A /* libPods-MuslimCompass.a */,
+				FE13E8E0B8086ABEB0C9375C /* libPods-MuslimCompass.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		4309556E0906428A7A6C5B3C /* ExpoModulesProviders */ = {
+		52D0A702E66A4D500FF6E7E3 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				D7CB56EE5C822326F4AAC537 /* MuslimCompass */,
+				19EE4C69D9F1F2540CBF899A /* Pods-MuslimCompass.debug.xcconfig */,
+				CE14030ED3EC7A77EB9B9A89 /* Pods-MuslimCompass.release.xcconfig */,
 			);
-			name = ExpoModulesProviders;
+			name = Pods;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -92,8 +94,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				B3BB7C5EA42B46B77F6D15B5 /* Pods */,
-				4309556E0906428A7A6C5B3C /* ExpoModulesProviders */,
+				52D0A702E66A4D500FF6E7E3 /* Pods */,
+				8EF996A7EF05BF6511C26EC2 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -108,14 +110,12 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		B3BB7C5EA42B46B77F6D15B5 /* Pods */ = {
+		8EF996A7EF05BF6511C26EC2 /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				606D6F20DCA7B8A554B09072 /* Pods-MuslimCompass.debug.xcconfig */,
-				9F91211CF938B66642D46E8E /* Pods-MuslimCompass.release.xcconfig */,
+				DEBC35461ED727E5BAEE27F9 /* MuslimCompass */,
 			);
-			name = Pods;
-			path = Pods;
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -127,10 +127,10 @@
 			path = MuslimCompass/Supporting;
 			sourceTree = "<group>";
 		};
-		D7CB56EE5C822326F4AAC537 /* MuslimCompass */ = {
+		DEBC35461ED727E5BAEE27F9 /* MuslimCompass */ = {
 			isa = PBXGroup;
 			children = (
-				07A6B16142E963EFD42C6424 /* ExpoModulesProvider.swift */,
+				98E44D68AD4E11A558798129 /* ExpoModulesProvider.swift */,
 			);
 			name = MuslimCompass;
 			sourceTree = "<group>";
@@ -143,13 +143,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "MuslimCompass" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				8137EACB8C0CA4DA49DFAE12 /* [Expo] Configure project */,
+				5BF44DFC9D0652CB3A6BD145 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				ABAC2E3B19A00846E0E92BC1 /* [CP] Embed Pods Frameworks */,
+				855FB5193A8DE60EC98D7AE5 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -201,8 +201,8 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				F7F912AC0A3E40E8BBE9ED3E /* azan.mp3 in Resources */,
-				C41AFA425675545B04CEC3CA /* PrivacyInfo.xcprivacy in Resources */,
+				9A17000BA097435BBB445E29 /* azan.mp3 in Resources */,
+				70592136D21D369FE425F3CC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -245,6 +245,25 @@
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		5BF44DFC9D0652CB3A6BD145 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-MuslimCompass/expo-configure-project.sh\"\n";
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -302,26 +321,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MuslimCompass/Pods-MuslimCompass-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		8137EACB8C0CA4DA49DFAE12 /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-MuslimCompass/expo-configure-project.sh\"\n";
-		};
-		ABAC2E3B19A00846E0E92BC1 /* [CP] Embed Pods Frameworks */ = {
+		855FB5193A8DE60EC98D7AE5 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -347,7 +347,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				EB55FB38772A03602236DE98 /* ExpoModulesProvider.swift in Sources */,
+				69641DC60447C20C0876E812 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -356,7 +356,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 606D6F20DCA7B8A554B09072 /* Pods-MuslimCompass.debug.xcconfig */;
+			baseConfigurationReference = 19EE4C69D9F1F2540CBF899A /* Pods-MuslimCompass.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -395,7 +395,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9F91211CF938B66642D46E8E /* Pods-MuslimCompass.release.xcconfig */;
+			baseConfigurationReference = CE14030ED3EC7A77EB9B9A89 /* Pods-MuslimCompass.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
