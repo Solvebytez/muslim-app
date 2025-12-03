@@ -51,6 +51,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState(false);
   const { location } = useDateTimeLocation();
 
   const router = useRouter();
@@ -113,6 +114,8 @@ export default function LoginScreen() {
       return;
     }
 
+    setIsSocialLoading(true);
+
     try {
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
@@ -124,7 +127,7 @@ export default function LoginScreen() {
           "🔍 Google Sign-in - Selected user type:",
           selectedUserType
         );
-        authHandle({
+        await authHandle({
           name:
             userInfo.data.user.name ||
             userInfo.data.user.givenName ||
@@ -138,9 +141,11 @@ export default function LoginScreen() {
       } else {
         console.log("user cancelled", userInfo);
         // sign in was cancelled by user
+        setIsSocialLoading(false);
       }
     } catch (error) {
       console.log("error", error);
+      setIsSocialLoading(false);
 
       if (isErrorWithCode(error)) {
         switch (error.code) {
@@ -150,17 +155,25 @@ export default function LoginScreen() {
             break;
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
             // Android only, play services not available or outdated
-            console.log(
-              "Android only, play services not available or outdated"
+            Alert.alert(
+              "Sign-In Failed",
+              "Google Play Services are not available. Please update Google Play Services and try again."
             );
             break;
           default:
             // some other error happened
-            console.log("some other error happened");
+            Alert.alert(
+              "Sign-In Failed",
+              "Unable to sign in with Google. Please try again."
+            );
             break;
         }
       } else {
         // an error that's not related to google sign in occurred
+        Alert.alert(
+          "Sign-In Failed",
+          "An unexpected error occurred. Please try again."
+        );
       }
     }
   };
@@ -229,6 +242,7 @@ export default function LoginScreen() {
 
     // Close modal first
     setModalVisible(false);
+    setIsSocialLoading(true);
 
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -263,6 +277,7 @@ export default function LoginScreen() {
       });
     } catch (error: any) {
       console.log("Apple Sign-In error:", error);
+      setIsSocialLoading(false);
 
       if (error.code === "ERR_REQUEST_CANCELED") {
         // User canceled the sign-in
@@ -407,11 +422,23 @@ export default function LoginScreen() {
     try {
       const user = { name, email, avatar, role };
       console.log("🔍 JWT Token - User data being encoded:", user);
+      
+      // Validate secret before encoding
+      if (!secret) {
+        console.error("❌ APP_API_TOKEN is not configured");
+        throw new Error("App configuration error. Please contact support.");
+      }
+      
       const token = JWT.encode(user, secret);
       await setItemAsync("avatar", avatar); // Fixed to use SecureStore
       const endpoint = provider === "apple" ? "/apple-login" : "/google-login";
+      
+      // Add timeout to prevent infinite loading
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await axiosInstance.post(endpoint, {
-        signInToken: token, // Fixed typo here (was signInTokn)
+        signInToken: token,
         location: {
           latitude: location?.latitude,
           longitude: location?.longitude,
@@ -420,7 +447,11 @@ export default function LoginScreen() {
           country: location?.country,
           postalCode: location?.postalCode,
         },
+      }, {
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       console.log(
         "✅ Server responded:",
@@ -441,6 +472,7 @@ export default function LoginScreen() {
           await setItemAsync("name", name);
           await setItemAsync("email", email);
           await setItemAsync("role", roleData);
+          setIsSocialLoading(false);
           if (roleData === "user") {
             router.replace("/(tabs)");
           } else {
@@ -448,39 +480,45 @@ export default function LoginScreen() {
           }
         } else {
           console.warn("⚠️ Access token missing in response.");
-          throw new Error("Access token missing in response");
+          throw new Error("Server response missing authentication token");
         }
       } else {
         console.warn("⚠️ Unexpected status code:", response.status);
-        throw new Error(`Unexpected status code: ${response.status}`);
+        throw new Error("Unexpected server response. Please try again.");
       }
     } catch (error: unknown) {
-      console.log("❌ Google Sign-In Error (full details)");
+      console.log("❌ Sign-In Error (full details)");
+      setIsSocialLoading(false);
+
+      let errorMessage = "Unable to sign in. Please try again.";
 
       if (error instanceof AxiosError) {
-        // TypeScript now knows this is an AxiosError
-        if (error.response) {
-          console.log("🔴 Response error:");
-          console.log("Status:", error.response.status);
-          console.log("Data:", error.response.data);
-          console.log("Headers:", error.response.headers);
+        if (error.code === "ECONNABORTED" || error.name === "AbortError") {
+          errorMessage = "Connection timed out. Please check your internet and try again.";
+        } else if (error.response) {
+          console.log("🔴 Response error:", error.response.status, error.response.data);
+          errorMessage = error.response.data?.message || 
+                        error.response.data?.error || 
+                        "Server error. Please try again later.";
         } else if (error.request) {
           console.log("🟡 No response from server (network error)");
-          console.log("Request:", error.request);
+          errorMessage = "Unable to connect to server. Please check your internet connection.";
         } else {
           console.log("🔵 Axios setup error:", error.message);
         }
-        console.log("Config:", error.config);
       } else if (error instanceof Error) {
         console.log("🟣 Non-Axios Error:", error.message);
-        console.log("Stack Trace:", error.stack);
+        if (error.name === "AbortError") {
+          errorMessage = "Connection timed out. Please check your internet and try again.";
+        } else {
+          errorMessage = error.message;
+        }
       } else {
         console.log("⚫ Unknown error type:", typeof error);
-        console.log("Error object:", error);
       }
 
-      // Re-throw the error if you want calling code to handle it
-      throw error;
+      // Show user-friendly error message
+      Alert.alert("Sign-In Failed", errorMessage);
     }
   };
 
@@ -524,9 +562,10 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.signInButton,
-                { flexDirection: "row", gap: 10, marginBottom: 15 },
+                { flexDirection: "row", gap: 10, marginBottom: 15, opacity: isSocialLoading ? 0.7 : 1 },
               ]}
               onPress={() => setEmailPasswordModalVisible(true)}
+              disabled={isSocialLoading}
             >
               <Ionicons name="mail-outline" size={20} color="#093637" />
               <ThemedText
@@ -546,9 +585,11 @@ export default function LoginScreen() {
                   flexDirection: "row",
                   gap: 10,
                   marginBottom: Platform.OS === "ios" ? 15 : 0,
+                  opacity: isSocialLoading ? 0.7 : 1,
                 },
               ]}
               onPress={signInoptons}
+              disabled={isSocialLoading}
             >
               <Image source={googleIcon} style={{ width: 20, height: 20 }} />
               <ThemedText
@@ -570,9 +611,11 @@ export default function LoginScreen() {
                     flexDirection: "row",
                     gap: 10,
                     backgroundColor: "#000",
+                    opacity: isSocialLoading ? 0.7 : 1,
                   },
                 ]}
                 onPress={handleAppleSignin}
+                disabled={isSocialLoading}
               >
                 <Ionicons name="logo-apple" size={20} color="#fff" />
                 <ThemedText
@@ -584,6 +627,14 @@ export default function LoginScreen() {
                   Continue With Apple
                 </ThemedText>
               </TouchableOpacity>
+            )}
+            
+            {/* Loading overlay for social login */}
+            {isSocialLoading && (
+              <View style={styles.socialLoadingContainer}>
+                <ActivityIndicator size="small" color="#093637" />
+                <Text style={styles.socialLoadingText}>Signing in...</Text>
+              </View>
             )}
           </View>
         </KeyboardAvoidingView>
@@ -742,24 +793,23 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
-              style={styles.continueButton}
+              style={[styles.continueButton, { opacity: isSocialLoading ? 0.7 : 1 }]}
               onPress={() => {
                 // Close modal first
                 setModalVisible(false);
                 // Then trigger the appropriate sign-in
-                if (Platform.OS === "ios") {
-                  // For iOS, we can show Apple Sign-In directly or Google
-                  // For now, let's keep Google flow as is and add Apple button separately
-                  handleGoogleSignin();
-                } else {
-                  handleGoogleSignin();
-                }
+                handleGoogleSignin();
               }}
+              disabled={isSocialLoading}
             >
-              <Text style={styles.continueButtonText}>
-                Continue with Google as{" "}
-                {selectedUserType === "user" ? "User" : "Restaurant Owner"}
-              </Text>
+              {isSocialLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.continueButtonText}>
+                  Continue with Google as{" "}
+                  {selectedUserType === "user" ? "User" : "Restaurant Owner"}
+                </Text>
+              )}
             </TouchableOpacity>
 
             {/* Apple Sign-In button (iOS only) */}
@@ -767,14 +817,19 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={[
                   styles.continueButton,
-                  { backgroundColor: "#000", marginTop: 10 },
+                  { backgroundColor: "#000", marginTop: 10, opacity: isSocialLoading ? 0.7 : 1 },
                 ]}
                 onPress={performAppleSignIn}
+                disabled={isSocialLoading}
               >
-                <Text style={styles.continueButtonText}>
-                  Continue with Apple as{" "}
-                  {selectedUserType === "user" ? "User" : "Restaurant Owner"}
-                </Text>
+                {isSocialLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.continueButtonText}>
+                    Continue with Apple as{" "}
+                    {selectedUserType === "user" ? "User" : "Restaurant Owner"}
+                  </Text>
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -1010,5 +1065,18 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 50,
     marginTop: 10,
+  },
+  socialLoadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 15,
+    paddingVertical: 10,
+  },
+  socialLoadingText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+    marginLeft: 8,
   },
 });
