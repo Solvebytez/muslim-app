@@ -21,12 +21,16 @@
           "fetch",
           "remote-notification"
         ],
+        // Note: "audio" background mode is required for playing azan (prayer call)
+        // notifications in the background when the app is closed. This is a core
+        // feature for prayer time reminders.
         "BGTaskSchedulerPermittedIdentifiers": [
           "com.sahin05.muslimguide.background-notification-task"
         ],
         "NSUserNotificationsUsageDescription": "We need notification permission to remind you of prayer times with azan.",
         "NSCameraUsageDescription": "We need camera access to take photos of hotels and restaurants.",
         "NSPhotoLibraryUsageDescription": "We need photo library access to select images for hotels and restaurants.",
+        "NSUserTrackingUsageDescription": "We use this to improve your app experience and show relevant content. Your data is never shared with third parties for advertising.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -95,6 +99,12 @@
       "expo-image-picker",
       "expo-secure-store",
       "expo-apple-authentication",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "We use this to improve your app experience and show relevant content. Your data is never shared with third parties for advertising."
+        }
+      ],
       [
         "@react-native-google-signin/google-signin",
         {

@@ -189,10 +189,27 @@ export default function LoginScreen() {
   };
 
   const handleAppleSignin = async () => {
-    if (!AppleAuthentication) {
+    console.log("🍎 Apple Sign-In button clicked");
+
+    // Check platform first
+    if (Platform.OS !== "ios") {
       Alert.alert(
         "Not Available",
-        "Apple Sign-In is not available on this device."
+        "Sign in with Apple is only available on iOS devices. Please use email or Google sign-in instead."
+      );
+      return;
+    }
+
+    // Check if Apple Authentication module is available
+    if (
+      !AppleAuthentication ||
+      typeof AppleAuthentication.isAvailableAsync !== "function"
+    ) {
+      console.error("❌ AppleAuthentication module is not properly loaded");
+      console.error("AppleAuthentication:", AppleAuthentication);
+      Alert.alert(
+        "Not Available",
+        "Apple Sign-In is not properly configured. Please use email or Google sign-in instead."
       );
       return;
     }
@@ -214,37 +231,86 @@ export default function LoginScreen() {
 
     // Check if Apple Authentication is available (iOS 13+)
     try {
+      console.log("🔍 Checking Apple Sign-In availability...");
       const isAvailable = await AppleAuthentication.isAvailableAsync();
+      console.log("✅ Apple Sign-In available:", isAvailable);
+
       if (!isAvailable) {
         Alert.alert(
           "Not Available",
-          "Sign in with Apple is not available on this device."
+          "Sign in with Apple requires iOS 13 or later. Please update your device or use email/Google sign-in instead."
         );
         return;
       }
 
       // Show modal to select user type first
+      console.log("📱 Showing user type selection modal");
       setModalVisible(true);
-    } catch (error) {
-      console.error("Apple Sign-In availability check failed:", error);
-      Alert.alert("Error", "Unable to check Apple Sign-In availability.");
+    } catch (error: any) {
+      console.error("❌ Apple Sign-In availability check failed:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error code:", error?.code);
+      console.error("Error message:", error?.message);
+      console.error("Error name:", error?.name);
+      console.error("Error stack:", error?.stack);
+
+      // Check for specific error types
+      if (
+        error?.code === "ERR_NOT_AVAILABLE" ||
+        error?.message?.includes("not available")
+      ) {
+        Alert.alert(
+          "Not Available",
+          "Sign in with Apple is not available on this device. Please use email or Google sign-in instead."
+        );
+      } else {
+        // Provide user-friendly error message
+        Alert.alert(
+          "Sign-In Unavailable",
+          "Unable to initialize Apple Sign-In. Please try using email or Google sign-in instead, or ensure your device supports Sign in with Apple (iOS 13+)."
+        );
+      }
     }
   };
 
   const performAppleSignIn = async () => {
-    if (!AppleAuthentication) {
-      Alert.alert(
-        "Not Available",
-        "Apple Sign-In is not available on this device."
-      );
-      return;
-    }
-
     // Close modal first
     setModalVisible(false);
     setIsSocialLoading(true);
 
     try {
+      // Verify Apple Authentication is available before attempting sign-in
+      if (!AppleAuthentication) {
+        setIsSocialLoading(false);
+        Alert.alert(
+          "Not Available",
+          "Apple Sign-In is not available on this device. Please use email or Google sign-in instead."
+        );
+        return;
+      }
+
+      // Double-check availability
+      let isAvailable = false;
+      try {
+        isAvailable = await AppleAuthentication.isAvailableAsync();
+      } catch (checkError) {
+        console.warn(
+          "Availability check failed, proceeding anyway:",
+          checkError
+        );
+        // Continue - the sign-in call will handle the error if truly unavailable
+      }
+
+      if (!isAvailable && Platform.OS === "ios") {
+        setIsSocialLoading(false);
+        Alert.alert(
+          "Not Available",
+          "Sign in with Apple is not available on this device. Please use email or Google sign-in instead."
+        );
+        return;
+      }
+
+      // Attempt Apple Sign-In
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -289,40 +355,58 @@ export default function LoginScreen() {
       console.error("Error stack:", error?.stack);
       setIsSocialLoading(false);
 
-      if (error.code === "ERR_REQUEST_CANCELED") {
-        // User canceled the sign-in
+      // Handle user cancellation - don't show error
+      if (
+        error.code === "ERR_REQUEST_CANCELED" ||
+        error.code === "ERR_CANCELED"
+      ) {
         console.log("User canceled Apple Sign-In");
         return; // Don't show error for user cancellation
+      }
+
+      // Handle Apple Authentication specific errors
+      if (error.code === "ERR_INVALID_CREDENTIAL") {
+        Alert.alert(
+          "Sign-In Failed",
+          "Invalid Apple credentials. Please try again or use a different sign-in method."
+        );
+        return;
+      }
+
+      if (error.code === "ERR_NOT_AVAILABLE") {
+        Alert.alert(
+          "Not Available",
+          "Sign in with Apple is not available on this device. Please use email or Google sign-in instead."
+        );
+        return;
       }
 
       // Check if it's an API error from authHandle
       if (error instanceof AxiosError) {
         let errorMessage = "Unable to sign in with Apple. Please try again.";
-        
+
         if (error.response) {
           // Server responded with error
-          const serverError = error.response.data?.message || error.response.data?.error;
-          errorMessage = serverError || `Server error: ${error.response.status}`;
+          const serverError =
+            error.response.data?.message || error.response.data?.error;
+          errorMessage =
+            serverError || `Server error: ${error.response.status}`;
           console.error("Server error response:", error.response.data);
         } else if (error.request) {
           // Network error
-          errorMessage = "Network error. Please check your internet connection.";
+          errorMessage =
+            "Network error. Please check your internet connection and try again.";
           console.error("Network error - no response from server");
         }
 
         Alert.alert("Sign-In Failed", errorMessage);
-      } else if (error?.code === "ERR_INVALID_CREDENTIAL" || error?.code === "ERR_NOT_AVAILABLE") {
-        Alert.alert(
-          "Sign-In Failed",
-          "Apple Sign-In is not available or credentials are invalid. Please try again."
-        );
       } else {
-        // Generic error
-        const errorMsg = error?.message || "Unknown error occurred";
+        // Generic error - provide user-friendly message
+        const errorMsg = error?.message || "An unexpected error occurred";
         console.error("Generic Apple Sign-In error:", errorMsg);
         Alert.alert(
           "Sign-In Failed",
-          `Unable to sign in with Apple: ${errorMsg}. Please try again.`
+          "Unable to sign in with Apple. Please try again or use a different sign-in method."
         );
       }
     }
@@ -459,35 +543,39 @@ export default function LoginScreen() {
     try {
       const user = { name, email, avatar, role };
       console.log("🔍 JWT Token - User data being encoded:", user);
-      
+
       // Validate secret before encoding
       if (!secret) {
         console.error("❌ APP_API_TOKEN is not configured");
         throw new Error("App configuration error. Please contact support.");
       }
-      
+
       const token = JWT.encode(user, secret);
       await setItemAsync("avatar", avatar); // Fixed to use SecureStore
       const endpoint = provider === "apple" ? "/apple-login" : "/google-login";
-      
+
       // Add timeout to prevent infinite loading
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      const response = await axiosInstance.post(endpoint, {
-        signInToken: token,
-        location: {
-          latitude: location?.latitude,
-          longitude: location?.longitude,
-          city: location?.city,
-          region: location?.region,
-          country: location?.country,
-          postalCode: location?.postalCode,
+
+      const response = await axiosInstance.post(
+        endpoint,
+        {
+          signInToken: token,
+          location: {
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+            city: location?.city,
+            region: location?.region,
+            country: location?.country,
+            postalCode: location?.postalCode,
+          },
         },
-      }, {
-        signal: controller.signal,
-      });
-      
+        {
+          signal: controller.signal,
+        }
+      );
+
       clearTimeout(timeoutId);
 
       console.log(
@@ -531,22 +619,30 @@ export default function LoginScreen() {
 
       if (error instanceof AxiosError) {
         if (error.code === "ECONNABORTED" || error.name === "AbortError") {
-          errorMessage = "Connection timed out. Please check your internet and try again.";
+          errorMessage =
+            "Connection timed out. Please check your internet and try again.";
         } else if (error.response) {
-          console.log("🔴 Response error:", error.response.status, error.response.data);
-          errorMessage = error.response.data?.message || 
-                        error.response.data?.error || 
-                        "Server error. Please try again later.";
+          console.log(
+            "🔴 Response error:",
+            error.response.status,
+            error.response.data
+          );
+          errorMessage =
+            error.response.data?.message ||
+            error.response.data?.error ||
+            "Server error. Please try again later.";
         } else if (error.request) {
           console.log("🟡 No response from server (network error)");
-          errorMessage = "Unable to connect to server. Please check your internet connection.";
+          errorMessage =
+            "Unable to connect to server. Please check your internet connection.";
         } else {
           console.log("🔵 Axios setup error:", error.message);
         }
       } else if (error instanceof Error) {
         console.log("🟣 Non-Axios Error:", error.message);
         if (error.name === "AbortError") {
-          errorMessage = "Connection timed out. Please check your internet and try again.";
+          errorMessage =
+            "Connection timed out. Please check your internet and try again.";
         } else {
           errorMessage = error.message;
         }
@@ -599,7 +695,12 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.signInButton,
-                { flexDirection: "row", gap: 10, marginBottom: 15, opacity: isSocialLoading ? 0.7 : 1 },
+                {
+                  flexDirection: "row",
+                  gap: 10,
+                  marginBottom: 15,
+                  opacity: isSocialLoading ? 0.7 : 1,
+                },
               ]}
               onPress={() => setEmailPasswordModalVisible(true)}
               disabled={isSocialLoading}
@@ -665,7 +766,7 @@ export default function LoginScreen() {
                 </ThemedText>
               </TouchableOpacity>
             )}
-            
+
             {/* Loading overlay for social login */}
             {isSocialLoading && (
               <View style={styles.socialLoadingContainer}>
@@ -830,7 +931,10 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.continueButton, { opacity: isSocialLoading ? 0.7 : 1 }]}
+              style={[
+                styles.continueButton,
+                { opacity: isSocialLoading ? 0.7 : 1 },
+              ]}
               onPress={() => {
                 // Close modal first
                 setModalVisible(false);
@@ -854,7 +958,11 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={[
                   styles.continueButton,
-                  { backgroundColor: "#000", marginTop: 10, opacity: isSocialLoading ? 0.7 : 1 },
+                  {
+                    backgroundColor: "#000",
+                    marginTop: 10,
+                    opacity: isSocialLoading ? 0.7 : 1,
+                  },
                 ]}
                 onPress={performAppleSignIn}
                 disabled={isSocialLoading}
