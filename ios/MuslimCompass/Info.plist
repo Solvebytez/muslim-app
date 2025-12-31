@@ -85,6 +85,8 @@
     </array>
     <key>NSUserNotificationsUsageDescription</key>
     <string>We need notification permission to remind you of prayer times with azan.</string>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>We use this to improve your app experience and show relevant content. Your data is never shared with third parties for advertising.</string>
     <key>UIBackgroundModes</key>
     <array>
       <string>audio</string>

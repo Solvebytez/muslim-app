@@ -8,7 +8,8 @@ import "react-native-reanimated";
 
 import QueryProvider from "@/constants/QueryClientProvider";
 import offlineCacheManager from "@/utils/offlineCacheManager";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, View, Platform } from "react-native";
+import * as TrackingTransparency from "expo-tracking-transparency";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -30,6 +31,32 @@ export default function RootLayout() {
     };
 
     preCacheLocations();
+  }, []);
+
+  // Request App Tracking Transparency permission (iOS 14.5+)
+  // Only request if the app actually tracks users for advertising
+  // If your app doesn't track, update App Store Connect privacy settings instead
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      const requestTrackingPermission = async () => {
+        try {
+          // Delay slightly to ensure app is fully active
+          setTimeout(async () => {
+            const { status } =
+              await TrackingTransparency.requestTrackingPermissionsAsync();
+            if (status === "granted") {
+              console.log("User granted tracking permission");
+            } else {
+              console.log("User denied or tracking permission unavailable");
+            }
+          }, 500);
+        } catch (error) {
+          console.warn("Tracking transparency not available:", error);
+        }
+      };
+
+      requestTrackingPermission();
+    }
   }, []);
 
   if (!fontsLoaded) {
