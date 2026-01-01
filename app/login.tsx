@@ -127,7 +127,8 @@ export default function LoginScreen() {
           "🔍 Google Sign-in - Selected user type:",
           selectedUserType
         );
-        await authHandle({
+
+        const googleUserData = {
           name:
             userInfo.data.user.name ||
             userInfo.data.user.givenName ||
@@ -136,6 +137,24 @@ export default function LoginScreen() {
           email: userInfo.data.user.email,
           avatar: userInfo.data.user.photo || "",
           role: selectedUserType,
+        };
+
+        console.log(
+          "🔵 Google Sign-In - Complete user data:",
+          JSON.stringify(googleUserData, null, 2)
+        );
+        console.log(
+          "🔵 Google Sign-In - Calling authHandle with:",
+          googleUserData
+        );
+        console.log("🚀 Calling authHandle for Google Sign-In...");
+
+        await authHandle({
+          name: googleUserData.name,
+          email: googleUserData.email,
+          avatar: googleUserData.avatar,
+          role: googleUserData.role,
+          provider: "google",
         });
         // User signed in successfully
       } else {
@@ -286,7 +305,7 @@ export default function LoginScreen() {
 
     try {
       console.log("🍎 Starting Apple Sign-In process...");
-      
+
       // Check if Apple Sign-In is available before attempting
       const isAvailable = await AppleAuthentication.isAvailableAsync();
       if (!isAvailable) {
@@ -298,9 +317,9 @@ export default function LoginScreen() {
         );
         return;
       }
-      
+
       console.log("🍎 Apple Sign-In is available, showing modal...");
-      
+
       // Call signInAsync - this will show the Apple Sign-In UI
       // The promise resolves when user completes or cancels
       const credential = await AppleAuthentication.signInAsync({
@@ -312,8 +331,18 @@ export default function LoginScreen() {
 
       clearTimeout(safetyTimeout);
       console.log("✅ Apple Sign-In credential received:", credential);
-      
+      console.log("📋 Credential details:", {
+        user: credential.user,
+        email: credential.email,
+        fullName: credential.fullName,
+        realUserStatus: credential.realUserStatus,
+        state: credential.state,
+        identityToken: credential.identityToken ? "present" : "missing",
+        authorizationCode: credential.authorizationCode ? "present" : "missing",
+      });
+
       if (!credential || !credential.user) {
+        console.error("❌ Invalid credential - missing user ID");
         setIsSocialLoading(false);
         throw new Error("Invalid credential received from Apple Sign-In");
       }
@@ -326,19 +355,38 @@ export default function LoginScreen() {
           }`.trim()
         : "";
 
+      console.log(
+        "👤 Extracted name:",
+        fullName || "EMPTY (will use 'Apple User')"
+      );
+
       // For Apple, email might be hidden - use user identifier if email is null
       // Apple provides a unique user ID that we can use
       const userEmail =
         credential.email || `${credential.user}@privaterelay.appleid.com`;
 
-      console.log("🍎 Apple Sign-In - Calling authHandle with:", {
+      console.log("📧 Extracted email:", userEmail);
+      console.log(
+        "📧 Email source:",
+        credential.email ? "from credential" : "generated from user ID"
+      );
+
+      const appleUserData = {
         name: fullName || "Apple User",
         email: userEmail,
         role: selectedUserType,
         provider: "apple",
-      });
+        avatar: "", // Apple doesn't provide profile photo
+      };
+
+      console.log(
+        "🍎 Apple Sign-In - Complete user data:",
+        JSON.stringify(appleUserData, null, 2)
+      );
+      console.log("🍎 Apple Sign-In - Calling authHandle with:", appleUserData);
 
       // Call authHandle with Apple provider
+      console.log("🚀 Calling authHandle for Apple Sign-In...");
       await authHandle({
         name: fullName || "Apple User",
         email: userEmail,
@@ -346,7 +394,7 @@ export default function LoginScreen() {
         role: selectedUserType,
         provider: "apple",
       });
-      
+
       console.log("✅ Apple Sign-In completed successfully");
       // Note: setIsSocialLoading(false) is not needed here because authHandle
       // will navigate to the next screen on success
@@ -547,33 +595,51 @@ export default function LoginScreen() {
     provider?: "google" | "apple";
   }) => {
     try {
-      console.log(`🔐 Starting ${provider} authentication...`);
+      console.log(
+        `\n🔐 ========== Starting ${provider.toUpperCase()} Authentication ==========`
+      );
+      console.log(`📥 authHandle called with:`, {
+        name,
+        email,
+        avatar: avatar || "(empty)",
+        role,
+        provider,
+      });
+
       const user = { name, email, avatar, role };
-      console.log("🔍 JWT Token - User data being encoded:", user);
+      console.log(
+        "🔍 JWT Token - User data being encoded:",
+        JSON.stringify(user, null, 2)
+      );
 
       // Validate secret before encoding
       if (!secret) {
         console.error("❌ APP_API_TOKEN is not configured");
         throw new Error("App configuration error. Please contact support.");
       }
-      
+
       console.log("🔐 Encoding JWT token...");
+      console.log("🔑 Secret token exists:", !!secret);
       const token = JWT.encode(user, secret);
       console.log("✅ JWT token encoded successfully");
-      
+      console.log("🎫 JWT token length:", token.length);
+      console.log("🎫 JWT token preview:", token.substring(0, 50) + "...");
+
       await setItemAsync("avatar", avatar); // Fixed to use SecureStore
       const endpoint = provider === "apple" ? "/apple-login" : "/google-login";
-      console.log(`🌐 Calling API endpoint: ${endpoint}`);
-      
+      console.log(`🌐 API Endpoint: ${endpoint}`);
+      console.log(
+        `🌐 Full URL will be: ${axiosInstance.defaults.baseURL}${endpoint}`
+      );
+
       // Add timeout to prevent infinite loading
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         console.error("⏱️ Request timeout after 30 seconds");
         controller.abort();
       }, 30000); // 30 second timeout
-      
-      console.log("📡 Sending request to server...");
-      const response = await axiosInstance.post(endpoint, {
+
+      const requestPayload = {
         signInToken: token,
         location: {
           latitude: location?.latitude,
@@ -583,17 +649,36 @@ export default function LoginScreen() {
           country: location?.country,
           postalCode: location?.postalCode,
         },
-      }, {
+      };
+
+      console.log("📡 Sending request to server...");
+      console.log("📦 Request payload structure:", {
+        signInToken: `[JWT Token - ${token.length} chars]`,
+        location: requestPayload.location,
+      });
+      console.log(
+        "📍 Location data:",
+        JSON.stringify(requestPayload.location, null, 2)
+      );
+
+      const response = await axiosInstance.post(endpoint, requestPayload, {
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
-      console.log("✅ Server response received:", response?.status);
-
+      console.log("✅ Server response received!");
+      console.log("📊 Response status:", response?.status);
       console.log(
-        "✅ Server responded:",
-        response?.status,
-        response?.data.data
+        "📊 Response headers:",
+        JSON.stringify(response?.headers, null, 2)
+      );
+      console.log(
+        "📊 Full response data:",
+        JSON.stringify(response?.data, null, 2)
+      );
+      console.log(
+        "📊 Response data.data:",
+        JSON.stringify(response?.data?.data, null, 2)
       );
 
       if (response?.status === 200 || response?.status === 201) {
@@ -624,34 +709,67 @@ export default function LoginScreen() {
         throw new Error("Unexpected server response. Please try again.");
       }
     } catch (error: unknown) {
-      console.log("❌ Sign-In Error (full details)");
+      console.error("\n❌ ========== SIGN-IN ERROR ==========");
+      console.error("❌ Error type:", typeof error);
+      console.error("❌ Error constructor:", error?.constructor?.name);
+      console.error("❌ Full error object:", error);
       setIsSocialLoading(false);
 
       let errorMessage = "Unable to sign in. Please try again.";
 
       if (error instanceof AxiosError) {
+        console.error("📡 Axios Error Details:");
+        console.error("  - Error code:", error.code);
+        console.error("  - Error message:", error.message);
+        console.error("  - Error name:", error.name);
+        console.error("  - Has response:", !!error.response);
+        console.error("  - Has request:", !!error.request);
         if (error.code === "ECONNABORTED" || error.name === "AbortError") {
+          console.error("⏱️ Request timeout error");
           errorMessage =
             "Connection timed out. Please check your internet and try again.";
         } else if (error.response) {
-          console.log(
-            "🔴 Response error:",
-            error.response.status,
-            error.response.data
+          console.error("🔴 Server responded with error:");
+          console.error("  - Status:", error.response.status);
+          console.error("  - Status text:", error.response.statusText);
+          console.error(
+            "  - Response headers:",
+            JSON.stringify(error.response.headers, null, 2)
+          );
+          console.error(
+            "  - Response data:",
+            JSON.stringify(error.response.data, null, 2)
+          );
+          console.error(
+            "  - Error message from server:",
+            error.response.data?.message
+          );
+          console.error(
+            "  - Error field from server:",
+            error.response.data?.error
           );
           errorMessage =
             error.response.data?.message ||
             error.response.data?.error ||
-            "Server error. Please try again later.";
+            `Server error (${error.response.status}). Please try again later.`;
         } else if (error.request) {
-          console.log("🟡 No response from server (network error)");
+          console.error("🟡 Network error - No response from server:");
+          console.error(
+            "  - Request config:",
+            JSON.stringify(error.config, null, 2)
+          );
+          console.error("  - Request URL:", error.config?.url);
+          console.error("  - Request method:", error.config?.method);
           errorMessage =
             "Unable to connect to server. Please check your internet connection.";
         } else {
-          console.log("🔵 Axios setup error:", error.message);
+          console.error("🔵 Axios setup/configuration error:", error.message);
         }
       } else if (error instanceof Error) {
-        console.log("🟣 Non-Axios Error:", error.message);
+        console.error("🟣 Non-Axios Error:");
+        console.error("  - Error name:", error.name);
+        console.error("  - Error message:", error.message);
+        console.error("  - Error stack:", error.stack);
         if (error.name === "AbortError") {
           errorMessage =
             "Connection timed out. Please check your internet and try again.";
@@ -659,10 +777,14 @@ export default function LoginScreen() {
           errorMessage = error.message;
         }
       } else {
-        console.log("⚫ Unknown error type:", typeof error);
+        console.error("⚫ Unknown error type:", typeof error);
+        console.error("⚫ Error value:", error);
       }
 
+      console.error("❌ ========== END ERROR DETAILS ==========\n");
+
       // Show user-friendly error message
+      console.log("🚨 Showing error alert to user:", errorMessage);
       Alert.alert("Sign-In Failed", errorMessage);
     }
   };
@@ -778,7 +900,7 @@ export default function LoginScreen() {
                 </ThemedText>
               </TouchableOpacity>
             )}
-            
+
             {/* Loading overlay for social login - Full screen */}
             {isSocialLoading && (
               <Modal

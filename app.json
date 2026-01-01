@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sahin05.muslimguide",
+      "buildNumber": "15",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show prayer times and nearby mosques.",
@@ -21,9 +22,6 @@
           "fetch",
           "remote-notification"
         ],
-        // Note: "audio" background mode is required for playing azan (prayer call)
-        // notifications in the background when the app is closed. This is a core
-        // feature for prayer time reminders.
         "BGTaskSchedulerPermittedIdentifiers": [
           "com.sahin05.muslimguide.background-notification-task"
         ],
@@ -85,7 +83,9 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/azan.mp3"],
+          "sounds": [
+            "./assets/azan.mp3"
+          ],
           "icon": "./assets/images/notification-icon.png",
           "color": "#4A5FBF",
           "androidMode": "default",
