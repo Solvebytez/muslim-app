@@ -1,7 +1,7 @@
 {
   "name": "muslim-guide",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -43,7 +43,6 @@
     "expo-symbols": "~0.4.5",
     "expo-system-ui": "~5.0.8",
     "expo-task-manager": "~13.1.5",
-    "expo-tracking-transparency": "~5.2.4",
     "expo-web-browser": "~14.1.6",
     "react": "19.0.0",
     "react-dom": "19.0.0",
