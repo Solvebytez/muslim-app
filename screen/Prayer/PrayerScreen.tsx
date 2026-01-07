@@ -99,6 +99,11 @@ export default function PrayerScreen() {
   const defaultLng = -79.3832;
 
   const { date, location, isLoading: locationLoading } = useDateTimeLocation();
+  console.log("🕌 PrayerScreen - Location state:", {
+    location,
+    locationLoading,
+    date,
+  });
 
   // Prayer sound settings hook
   const {
@@ -107,12 +112,18 @@ export default function PrayerScreen() {
     togglePrayerSound,
     isSoundEnabled,
   } = usePrayerSoundSettings();
+  console.log("🔊 PrayerScreen - Sound settings:", {
+    soundSettingsLoading,
+    isSoundEnabled,
+  });
 
   // Create stable coordinates that only change when location actually changes
   const coordinates = useMemo(() => {
     const lat = location?.latitude ?? defaultLat;
     const lng = location?.longitude ?? defaultLng;
-    return { latitude: lat, longitude: lng };
+    const coords = { latitude: lat, longitude: lng };
+    console.log("📍 PrayerScreen - Coordinates:", coords);
+    return coords;
   }, [location?.latitude, location?.longitude, defaultLat, defaultLng]);
 
   const { prayerData, isLoading, error, refetch } = usePrayerTimes(
@@ -120,15 +131,65 @@ export default function PrayerScreen() {
     coordinates.latitude,
     coordinates.longitude
   );
+  console.log("🕐 PrayerScreen - Prayer times state:", {
+    hasPrayerData: !!prayerData,
+    isLoading,
+    error: error?.message || error,
+    date,
+    coordinates: `${coordinates.latitude}, ${coordinates.longitude}`,
+  });
 
   // Memoize prayer times to prevent recalculation
   const prayerTimes = useMemo(() => {
-    return prayerData ? formatPrayerTimes(prayerData.timings) : [];
+    if (!prayerData) {
+      console.log("📿 PrayerScreen - No prayer data available");
+      return [];
+    }
+    
+    // Debug: Log the entire prayerData structure to see what we have
+    console.log("📿 PrayerScreen - Raw prayer data structure:", {
+      hasPrayerData: !!prayerData,
+      prayerDataKeys: Object.keys(prayerData),
+      hasTimings: !!prayerData.timings,
+      timingsType: typeof prayerData.timings,
+      timingsValue: prayerData.timings,
+      fullDataSample: JSON.stringify(prayerData).substring(0, 500),
+    });
+    
+    // Try to get timings - might be nested differently
+    const timings = prayerData.timings || prayerData.data?.timings || null;
+    
+    if (!timings) {
+      console.error("❌ PrayerScreen - No timings found in prayerData structure!");
+      return [];
+    }
+    
+    console.log("📿 PrayerScreen - Found timings:", {
+      timingsKeys: Object.keys(timings),
+      timingsSample: {
+        Fajr: timings.Fajr,
+        Dhuhr: timings.Dhuhr,
+        Asr: timings.Asr,
+      },
+    });
+    
+    const times = formatPrayerTimes(timings);
+    console.log("📿 PrayerScreen - Formatted prayer times:", {
+      count: times.length,
+      times: times.map(t => `${t.name}: ${t.time}`),
+    });
+    
+    return times;
   }, [prayerData]); // Fixed dependency to include full prayerData
 
   // Memoize current and next prayer
   const { current: currentPrayer, next: nextPrayer } = useMemo(() => {
-    return findCurrentAndNextPrayer(prayerTimes);
+    const result = findCurrentAndNextPrayer(prayerTimes);
+    console.log("🕌 PrayerScreen - Current/Next prayer:", {
+      current: currentPrayer?.name || "None",
+      next: nextPrayer?.name || "None",
+    });
+    return result;
   }, [prayerTimes]);
 
   // Use unified prayer notifications hook instead of multiple hooks
@@ -339,8 +400,51 @@ export default function PrayerScreen() {
     );
   }
 
+  // Add timeout to prevent infinite loading - show content after max 3 seconds
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+  useEffect(() => {
+    console.log("⏱️ PrayerScreen - Starting loading timeout (3 seconds)");
+    const timeout = setTimeout(() => {
+      console.log("⏱️ PrayerScreen - Loading timeout reached, showing content");
+      setLoadingTimeout(true);
+    }, 3000); // 3 second max loading time
+    
+    return () => {
+      console.log("⏱️ PrayerScreen - Clearing loading timeout");
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  // Show content if we have prayer data OR if timeout has passed OR if we have coordinates
+  // This prevents infinite loading when location is taking too long
+  // Since we have default coordinates (Toronto), we can show prayer data immediately
+  const hasValidCoordinates = coordinates.latitude && coordinates.longitude;
+  const hasLocationData = !!location; // Check if we have actual location object, not just coordinates
+  
+  // Don't wait for locationLoading if we already have location data AND prayer data
+  // locationLoading can stay true while getting fresh location in background
   const isLoadingData =
-    (isLoading || locationLoading || soundSettingsLoading) && !prayerData;
+    !loadingTimeout && 
+    !prayerData &&
+    (isLoading || 
+     (locationLoading && !hasLocationData && !hasValidCoordinates) || 
+     soundSettingsLoading);
+  
+  console.log("🔄 PrayerScreen - Loading states:", {
+    loadingTimeout,
+    hasPrayerData: !!prayerData,
+    hasValidCoordinates,
+    hasLocationData,
+    isLoading,
+    locationLoading,
+    soundSettingsLoading,
+    isLoadingData,
+    finalDecision: isLoadingData ? "SHOWING LOADING" : "SHOWING CONTENT",
+    reason: isLoadingData 
+      ? `Waiting for: ${!prayerData ? 'prayerData' : ''} ${isLoading ? 'isLoading' : ''} ${locationLoading && !hasLocationData ? 'location' : ''} ${soundSettingsLoading ? 'soundSettings' : ''}`
+      : "All data ready or timeout passed",
+  });
   const isCalculatingPrayerData = prayerData && prayerTimes.length === 0;
 
   return (

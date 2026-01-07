@@ -91,14 +91,43 @@ export const useGetAllHotels = ({
   }, [queryClient, queryKey, resetOnMount]);
 
   return useInfiniteQuery<HotelCuisinsResponse>({
-    queryKey: [queryKey],
+    queryKey: [queryKey, cuisineName], // Include cuisineName in query key
     queryFn: async ({ pageParam = 1 }) => {
-      const response = await axiosInstance.post(endpoint, {
+      console.log("🍽️ Fetching hotels by cuisine:", {
+        endpoint,
         pageNumber: pageParam,
         pageSize,
         cuisinsName: cuisineName,
       });
-      return response.data.data;
+      
+      try {
+        const response = await axiosInstance.post(endpoint, {
+          pageNumber: pageParam,
+          pageSize,
+          cuisinsName: cuisineName,
+        });
+        
+        console.log("✅ Hotels by cuisine response:", {
+          status: response.status,
+          hasData: !!response.data?.data,
+          groupsCount: response.data?.data?.groups?.length || 0,
+          totalCuisines: response.data?.data?.totalCuisines,
+          groups: response.data?.data?.groups?.map((g: any) => ({
+            cuisine: g.cuisine,
+            restaurantsCount: g.restaurants?.length || 0,
+          })),
+        });
+        
+        return response.data.data;
+      } catch (error: any) {
+        console.error("❌ Error fetching hotels by cuisine:", {
+          endpoint,
+          cuisineName,
+          error: error?.response?.data || error?.message,
+          status: error?.response?.status,
+        });
+        throw error;
+      }
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {

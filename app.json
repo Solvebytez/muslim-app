@@ -17,7 +17,6 @@
         "NSLocationWhenInUseUsageDescription": "We need your location to show prayer times and nearby mosques.",
         "NSLocationAlwaysUsageDescription": "Your location helps us provide accurate guidance features at all times.",
         "UIBackgroundModes": [
-          "audio",
           "processing",
           "fetch",
           "remote-notification"
@@ -125,8 +124,7 @@
         {
           "backgroundModes": [
             "background-processing",
-            "background-fetch",
-            "audio"
+            "background-fetch"
           ]
         }
       ]

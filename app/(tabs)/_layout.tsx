@@ -35,7 +35,7 @@ export default function TabLayout() {
         },
       }}
     >
-      {/* Map tab - requires login, hidden for vendors and guests */}
+      {/* Map tab - accessible to all users (guests can browse) */}
       <Tabs.Screen
         name="index"
         options={{
@@ -43,11 +43,11 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Entypo name="map" size={24} color={color} />
           ),
-          href: currentUser && currentUser.role !== "vendor" ? "/" : null,
+          href: currentUser?.role === "vendor" ? null : "/", // Hide only for vendors
         }}
       />
 
-      {/* Cuisines tab - requires login, hidden for vendors and guests */}
+      {/* Cuisines tab - accessible to all users (guests can browse) */}
       <Tabs.Screen
         name="cuisines"
         options={{
@@ -55,7 +55,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Entypo name="ticket" size={24} color={color} />
           ),
-          href: currentUser && currentUser.role !== "vendor" ? "/cuisines" : null,
+          href: currentUser?.role === "vendor" ? null : "/cuisines", // Hide only for vendors
         }}
       />
 

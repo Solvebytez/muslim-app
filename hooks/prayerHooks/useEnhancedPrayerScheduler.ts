@@ -347,7 +347,7 @@ export const useUnifiedPrayerNotifications = (
       await Notifications.cancelAllScheduledNotificationsAsync();
 
       const newScheduledNotifications: ScheduledNotification[] = [];
-      const daysToSchedule = Platform.OS === "android" ? 7 : 3;
+      const daysToSchedule = 7; // Schedule for 7 days on both platforms
 
       console.log(
         `📅 Scheduling unified notifications for ${daysToSchedule} days`

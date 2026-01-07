@@ -28,6 +28,7 @@ const CuisinesScreen = React.memo(({ title }: { title?: string }) => {
     refetch,
     isFetchingNextPage,
     isRefetching,
+    error,
   } = useGetAllHotels({
     endpoint: "/get-hotels-by-user",
     queryKey: "user-hotels",
@@ -36,6 +37,20 @@ const CuisinesScreen = React.memo(({ title }: { title?: string }) => {
   });
 
   const cuisineGroups = data?.pages?.flatMap((page: any) => page.groups) || [];
+  
+  console.log("🍽️ CuisinesScreen - Data state:", {
+    cuisineName,
+    hasData: !!data,
+    pagesCount: data?.pages?.length || 0,
+    cuisineGroupsCount: cuisineGroups.length,
+    cuisineGroups: cuisineGroups.map((g: any) => ({
+      cuisine: g.cuisine,
+      restaurantsCount: g.restaurants?.length || 0,
+    })),
+    isLoading,
+    isFetching,
+    error: error ? (error as any)?.message || error : null,
+  });
 
   const { user } = useGetuser();
   const navigation = useNavigation();

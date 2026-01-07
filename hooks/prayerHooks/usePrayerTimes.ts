@@ -1,8 +1,8 @@
 "use client";
 
-import offlineCacheManager from "@/utils/offlineCacheManager";
+import { offlineCacheManager } from "@/utils/offlineCacheManager";
 import NetInfo from "@react-native-community/netinfo";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 interface PrayerTimings {
@@ -67,11 +67,28 @@ const fetchPrayerTimes = async (
 
   const result = await response.json();
 
-  if (result.code === 200) {
+  console.log("🌐 Aladhan API Response:", {
+    code: result.code,
+    hasData: !!result.data,
+    dataKeys: result.data ? Object.keys(result.data) : [],
+    hasTimings: result.data?.timings ? Object.keys(result.data.timings) : [],
+  });
+
+  if (result.code === 200 && result.data) {
     const data = result.data;
 
+    // Validate that timings exist
+    if (!data.timings) {
+      console.error(
+        "❌ API Response missing timings:",
+        JSON.stringify(data).substring(0, 500)
+      );
+      throw new Error("API response missing timings data");
+    }
+
     // Ensure hijri data exists, if not add default
-    if (!data.date.hijri) {
+    if (!data.date?.hijri) {
+      data.date = data.date || {};
       data.date.hijri = {
         date: "1445-06-15", // Placeholder Hijri date
         weekday: {
@@ -81,9 +98,14 @@ const fetchPrayerTimes = async (
       };
     }
 
+    console.log(
+      "✅ API Response valid, timings found:",
+      Object.keys(data.timings)
+    );
     return data;
   } else {
-    throw new Error("Invalid API response");
+    console.error("❌ Invalid API response:", result);
+    throw new Error(`Invalid API response: ${result.code || "unknown"}`);
   }
 };
 
@@ -92,7 +114,6 @@ export const usePrayerTimes = (
   latitude: number,
   longitude: number
 ): UsePrayerTimesReturn => {
-  const queryClient = useQueryClient();
   const [isOffline, setIsOffline] = useState(false);
 
   const {
@@ -148,39 +169,6 @@ export const usePrayerTimes = (
     retryDelay: 1000,
     // Override global network mode to allow offline queries
     networkMode: "always",
-    // Enhanced error handling with offline fallback
-    onError: async (error) => {
-      const netInfo = await NetInfo.fetch();
-      setIsOffline(!netInfo.isConnected);
-
-      if (!netInfo.isConnected) {
-        // Try to load cached data and update query cache
-        const cachedData = await offlineCacheManager.loadCachedPrayerTimes(
-          date,
-          latitude,
-          longitude
-        );
-        if (cachedData) {
-          queryClient.setQueryData(
-            ["prayer-times", date, latitude, longitude],
-            cachedData
-          );
-        }
-      }
-    },
-    // Initialize with cached data if available
-    initialData: async () => {
-      try {
-        const cachedData = await offlineCacheManager.loadCachedPrayerTimes(
-          date,
-          latitude,
-          longitude
-        );
-        return cachedData;
-      } catch (error) {
-        return undefined;
-      }
-    },
   });
 
   // Check network status on mount
@@ -193,13 +181,37 @@ export const usePrayerTimes = (
     checkNetworkStatus();
   }, []);
 
-  // Always return data - use default if no data available
-  const finalPrayerData =
-    prayerData || offlineCacheManager.getDefaultPrayerTimes();
+  // Validate prayerData structure before using it
+  const isValidPrayerData = (data: any): data is PrayerData => {
+    return (
+      data &&
+      data.timings &&
+      typeof data.timings === "object" &&
+      data.timings.Fajr &&
+      data.timings.Dhuhr
+    );
+  };
 
-  // Additional safety check - ensure we always return valid data
-  const safePrayerData =
+  // Always return data - use default if no data available or data is invalid
+  let finalPrayerData: PrayerData | null = prayerData ?? null;
+
+  // If prayerData exists but is invalid, log and use default
+  if (prayerData && !isValidPrayerData(prayerData)) {
+    console.error("❌ Invalid prayerData structure detected:", {
+      hasPrayerData: !!prayerData,
+      keys: Object.keys(prayerData || {}),
+      hasTimings: !!(prayerData as any)?.timings,
+    });
+    finalPrayerData = null;
+  }
+
+  finalPrayerData =
     finalPrayerData || offlineCacheManager.getDefaultPrayerTimes();
+
+  // Final validation - ensure we always return valid data
+  const safePrayerData: PrayerData = isValidPrayerData(finalPrayerData)
+    ? finalPrayerData
+    : offlineCacheManager.getDefaultPrayerTimes();
 
   return {
     prayerData: safePrayerData,

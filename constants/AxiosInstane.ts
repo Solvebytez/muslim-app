@@ -79,15 +79,23 @@ axiosInstance.interceptors.response.use(
     if (error?.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Clear all user data on session expiration
-      await clearAllUserData();
+      // Check if user had a token (was authenticated) before showing alert
+      // Guest users will get 401 errors, but we shouldn't show "Session Expired" for them
+      const token = await SecureStore.getItemAsync("accessToken");
+      
+      // Only show alert if user was previously authenticated (had a token)
+      if (token) {
+        // Clear all user data on session expiration
+        await clearAllUserData();
 
-      Alert.alert("Session Expired", "Please log in again", [
-        {
-          text: "OK",
-          onPress: () => router.replace("/login"),
-        },
-      ]);
+        Alert.alert("Session Expired", "Please log in again", [
+          {
+            text: "OK",
+            onPress: () => router.replace("/login"),
+          },
+        ]);
+      }
+      // If no token, user is a guest - silently fail without alert
     }
 
     return Promise.reject({ ...error, silent: true });

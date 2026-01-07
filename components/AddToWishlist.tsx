@@ -1,9 +1,12 @@
 "use client"
 
 import { useWishlistMutations } from "@/hooks/queries/useWishlist"
+import { useGetuser } from "@/hooks/useGetuser"
 import { Ionicons } from "@expo/vector-icons"
+import { router } from "expo-router"
 import { useEffect, useState } from "react"
 import { Alert, StyleSheet, TouchableOpacity } from "react-native"
+import * as SecureStore from "expo-secure-store"
 
 
 const AddToWishlist = ({
@@ -15,6 +18,7 @@ const AddToWishlist = ({
 }) => {
   const [inWishlist, setInWishlist] = useState(isInWishlist)
   const { addToWishlist, removeFromWishlist } = useWishlistMutations()
+  const { user } = useGetuser()
 
   // Update local state when prop changes
   useEffect(() => {
@@ -22,6 +26,23 @@ const AddToWishlist = ({
   }, [isInWishlist])
 
   const handleHeartPress = async () => {
+    // Check if user is logged in
+    const token = await SecureStore.getItemAsync("accessToken")
+    if (!token || !user) {
+      Alert.alert(
+        "Login Required",
+        "Please log in to save restaurants to your favorites.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Login", 
+            onPress: () => router.push("/login")
+          }
+        ]
+      )
+      return
+    }
+
     try {
       if (inWishlist) {
         // Optimistic update

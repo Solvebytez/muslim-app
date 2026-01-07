@@ -361,8 +361,8 @@ export const useUnifiedPrayerNotifications = (
       // Cancel all existing scheduled notifications to prevent duplicates
       await Notifications.cancelAllScheduledNotificationsAsync();
 
-      // Reduced days to schedule to avoid storage limit
-      const daysToSchedule = Platform.OS === "android" ? 7 : 3; // Restored to full capacity
+      // Schedule for 7 days on both platforms
+      const daysToSchedule = 7;
       let totalScheduled = 0;
 
       console.log(

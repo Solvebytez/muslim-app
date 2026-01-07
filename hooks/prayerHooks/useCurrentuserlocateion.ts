@@ -141,6 +141,7 @@ export default function useDateTimeLocation(): UseDateTimeLocationReturn {
           // Use cached location if it's less than 5 minutes old
           if (locationAge < LOCATION_MAX_AGE) {
             setLocation(parsedLocation);
+            setIsLoading(false); // Set loading to false when we have cached location
             return;
           } else {
           }
@@ -162,6 +163,7 @@ export default function useDateTimeLocation(): UseDateTimeLocationReturn {
           country: "Canada",
         };
         setLocation(defaultLocation);
+        setIsLoading(false); // Set loading to false when we set default location
       }
     };
 
@@ -194,7 +196,7 @@ export default function useDateTimeLocation(): UseDateTimeLocationReturn {
           const locationName = await getLocationName(
             loc.coords.latitude,
             loc.coords.longitude
-          );
+          ).catch(() => ({})); // Don't fail if reverse geocoding fails
 
           const locationData: LocationData = {
             latitude: loc.coords.latitude,
@@ -204,6 +206,7 @@ export default function useDateTimeLocation(): UseDateTimeLocationReturn {
           };
 
           setLocation(locationData);
+          setIsLoading(false); // IMPORTANT: Set loading to false once location is obtained
           await SecureStore.setItemAsync(
             LOCATION_KEY,
             JSON.stringify(locationData)
